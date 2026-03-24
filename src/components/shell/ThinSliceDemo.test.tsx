@@ -77,7 +77,7 @@ describe("ThinSliceDemo", () => {
     );
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard");
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "completed");
-    expect(screen.getByText(/mock outcome/i)).toBeInTheDocument();
+    expect(screen.getByText(/KPIs: estimated/i)).toBeInTheDocument();
     expect(screen.getByText(/\$1\.24M/)).toBeInTheDocument();
   });
 

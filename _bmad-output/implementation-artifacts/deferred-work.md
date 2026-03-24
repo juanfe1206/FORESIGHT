@@ -31,6 +31,12 @@
 - Module-level fixture null-safety not guarded at runtime; TypeScript `satisfies SimulationResponse` provides compile-time coverage — no runtime issue expected.
 - Dual public names `MOCK_BAKERY_MAP_FIXTURE` / `MOCK_SIMULATION_RESPONSE` could cause import drift over time. Alias is intentional per spec; consider consolidating in a future cleanup pass.
 
+## Deferred from: code review of 2-3-parallel-isolated-agent-execution (2026-03-25)
+
+- Shared `SIMULATION_TIMEOUT_MS` applies to both the classify phase and each of the 8 agent slots; worst-case wall-clock = `timeoutMs + (timeoutMs × ceil(8/concurrency))` (90s at defaults), risking infra gateway timeouts. Address with a separate `AGENT_TIMEOUT_MS` env var in a future story.
+- `max_tokens: 220` is tight for JSON output with all required fields plus a meaningful insight sentence; complex responses may truncate mid-JSON producing silent `AgentParseError` slot failures. Revisit token budget in Epic 6 or when tuning agent quality.
+- `new OpenAI({ apiKey })` is instantiated inside `runParallelAgents` on every simulation request; no connection reuse or singleton pattern. Extract to a factory or module-level singleton in a future performance pass.
+
 ## Deferred from: code review of 2-1-simulate-api-route-scaffold-environment-wiring (2026-03-24)
 
 - Rate limiter `store` in `rate-limit.ts` accumulates Map entries for every unique IP that has ever made a request; old timestamps are evicted but the key is never removed. Memory grows proportionally to the number of unique IPs over the process lifetime. Acceptable for MVP/hackathon; revisit if a persistent rate-limit store (e.g. Redis) is added.

@@ -85,6 +85,7 @@ export interface ErrorResponse {
     code: string;
     message: string;
     recoverable: boolean;
+    details?: Record<string, unknown>;
   };
   recovery?: {
     canUseCache: boolean;

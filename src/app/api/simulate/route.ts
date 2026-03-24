@@ -4,7 +4,8 @@ import {
   ProviderError,
   ProviderTimeoutError,
 } from "@/lib/classifier";
-import type { AgentOutput, ErrorResponse, SimulationResponse } from "@/lib/types";
+import { AgentPartialFailureError, runParallelAgents } from "@/lib/agents";
+import type { ErrorResponse, SimulationResponse } from "@/lib/types";
 import { MOCK_SIMULATION_RESPONSE } from "@/lib/mock-fixture";
 import type { NextRequest } from "next/server";
 import { checkRateLimit } from "./rate-limit";
@@ -24,6 +25,7 @@ const createErrorResponse = (
     canUseCache: false,
     fallbackViz: false,
   },
+  details?: Record<string, unknown>,
 ): Response => {
   const errorBody: ErrorResponse = {
     runId: `run_${Date.now()}`,
@@ -32,20 +34,13 @@ const createErrorResponse = (
       code,
       message,
       recoverable,
+      ...(details ? { details } : {}),
     },
     recovery,
   };
 
   return Response.json(errorBody, { status });
 };
-
-const buildAgentStubs = (roles: [string, string, string, string]): AgentOutput[] =>
-  roles.map((role) => ({
-    role,
-    insight: "",
-    confidence: 0,
-    grounding: "assumed",
-  }));
 
 const getClientIp = (request: Request): string => {
   const forwardedFor = request.headers.get("x-forwarded-for");
@@ -91,7 +86,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     const model = process.env.LLM_MODEL_PARSE_CLASSIFY ?? "gpt-4o-mini";
+    const agentModel = process.env.LLM_MODEL_AGENT ?? model;
     const timeoutMs = Number(process.env.SIMULATION_TIMEOUT_MS ?? "30000");
+    const concurrency = Number(process.env.AGENT_CONCURRENCY_LIMIT ?? "4") || 4;
 
     try {
       const { path_labels, viz_type, roles } = await classifyDecision(
@@ -101,7 +98,15 @@ export async function POST(request: NextRequest): Promise<Response> {
         model,
         timeoutMs,
       );
-      const agentStubs = buildAgentStubs(roles);
+      const agentRun = await runParallelAgents({
+        pathLabels: path_labels,
+        roles,
+        context: validation.data.context,
+        apiKey: process.env.LLM_API_KEY,
+        model: agentModel,
+        timeoutMs,
+        concurrency,
+      });
 
       const responseBody: SimulationResponse = {
         ...MOCK_SIMULATION_RESPONSE,
@@ -110,8 +115,8 @@ export async function POST(request: NextRequest): Promise<Response> {
         viz_type,
         path_labels,
         paths: {
-          A: { ...MOCK_SIMULATION_RESPONSE.paths.A, agents: agentStubs },
-          B: { ...MOCK_SIMULATION_RESPONSE.paths.B, agents: agentStubs },
+          A: { ...MOCK_SIMULATION_RESPONSE.paths.A, agents: agentRun.agentsByPath.A },
+          B: { ...MOCK_SIMULATION_RESPONSE.paths.B, agents: agentRun.agentsByPath.B },
         },
       };
 
@@ -142,6 +147,16 @@ export async function POST(request: NextRequest): Promise<Response> {
           true,
           502,
           CLASSIFY_RECOVERY,
+        );
+      }
+      if (error instanceof AgentPartialFailureError) {
+        return createErrorResponse(
+          "PARTIAL_AGENT_FAILURE",
+          "One or more agent slots failed.",
+          true,
+          502,
+          CLASSIFY_RECOVERY,
+          { failures: error.failures },
         );
       }
       throw error;

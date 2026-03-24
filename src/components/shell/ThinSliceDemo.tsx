@@ -2,6 +2,7 @@
 
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import type { AgentOutput } from "@/lib/types";
 import {
   RUN_MOCK_MS,
   initialUiShellState,
@@ -68,6 +69,8 @@ export function ThinSliceDemo() {
   const [runStatus, setRunStatus] = useState<UiRunStatus>(initialUiShellState.runStatus);
   const [decision, setDecision] = useState("");
   const [pathLabels, setPathLabels] = useState<[string, string]>(["Path A", "Path B"]);
+  const [vizType, setVizType] = useState<string | null>(null);
+  const [agentResults, setAgentResults] = useState<{ A: AgentOutput[]; B: AgentOutput[] } | null>(null);
 
   const mockComparison = useMemo(
     () => buildThinSliceMockComparison(pathLabels[0], pathLabels[1]),
@@ -108,10 +111,20 @@ export function ThinSliceDemo() {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ decision: decision.trim() }),
         });
-        const json = await res.json() as { path_labels?: { A: string; B: string } };
+        const json = await res.json() as {
+          path_labels?: { A: string; B: string };
+          viz_type?: string;
+          paths?: { A?: { agents?: AgentOutput[] }; B?: { agents?: AgentOutput[] } };
+        };
 
         if (res.ok && json.path_labels?.A && json.path_labels?.B) {
           finalLabels = [json.path_labels.A, json.path_labels.B];
+          if (json.viz_type) setVizType(json.viz_type);
+          const agentsA = json.paths?.A?.agents;
+          const agentsB = json.paths?.B?.agents;
+          if (agentsA?.length && agentsB?.length) {
+            setAgentResults({ A: agentsA, B: agentsB });
+          }
         } else {
           finalStatus = "error";
         }
@@ -136,6 +149,8 @@ export function ThinSliceDemo() {
     setUiStage("input");
     setRunStatus("idle");
     setDecision("");
+    setVizType(null);
+    setAgentResults(null);
   }, []);
 
   const onDevUiStageChange = useCallback((next: UiStage) => {
@@ -372,13 +387,16 @@ export function ThinSliceDemo() {
                       aria-label="Path A summary and KPI slot"
                       className="order-1 lg:order-1"
                     >
-                      <motion.div {...panelMotion} transition={springTransition} className="h-full">
+                      <motion.div {...panelMotion} transition={springTransition} className="flex flex-col gap-4">
                         <KpiCard
                           title={mockComparison.pathA.label}
                           subtitle="Path A"
                           kpis={mockComparison.pathA.kpis}
                           accentClass="text-accent"
                         />
+                        {agentResults?.A && (
+                          <AgentInsightList agents={agentResults.A} accentClass="text-accent" />
+                        )}
                       </motion.div>
                     </LeftPanelSlot>
                     <CenterPanelSlot
@@ -391,8 +409,15 @@ export function ThinSliceDemo() {
                         className="rounded-xl border border-border bg-surface p-6 text-center"
                       >
                         <p className="font-heading text-h3 text-text">Comparison</p>
-                        <p className="mt-2 text-caption text-text-dim">
-                          Mock outcome — no API calls in this slice
+                        {vizType && (
+                          <span className="mt-3 inline-block rounded-full bg-accent/10 px-3 py-1 font-mono text-caption uppercase tracking-wide text-accent">
+                            {vizType}
+                          </span>
+                        )}
+                        <p className="mt-3 text-caption text-text-dim">
+                          {agentResults
+                            ? "Agents: live · KPIs: estimated · Synthesis: Story 2.4"
+                            : "KPIs: estimated · Agents: pending"}
                         </p>
                       </motion.div>
                     </CenterPanelSlot>
@@ -403,7 +428,7 @@ export function ThinSliceDemo() {
                       <motion.div
                         {...panelMotion}
                         transition={{ ...springTransition, delay: 0.1 }}
-                        className="h-full"
+                        className="flex flex-col gap-4"
                       >
                         <KpiCard
                           title={mockComparison.pathB.label}
@@ -411,6 +436,9 @@ export function ThinSliceDemo() {
                           kpis={mockComparison.pathB.kpis}
                           accentClass="text-blue"
                         />
+                        {agentResults?.B && (
+                          <AgentInsightList agents={agentResults.B} accentClass="text-blue" />
+                        )}
                       </motion.div>
                     </RightPanelSlot>
                   </div>
@@ -474,6 +502,33 @@ export function ThinSliceDemo() {
   );
 }
 
+function AgentInsightList({ agents, accentClass }: { agents: AgentOutput[]; accentClass: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-surface p-4">
+      <p className="font-heading text-caption font-semibold uppercase tracking-wider text-text-dim">
+        Agent Insights
+        <span className="ml-2 inline-block rounded-full bg-accent/10 px-2 py-0.5 font-mono text-caption normal-case tracking-normal text-accent">
+          live
+        </span>
+      </p>
+      <ul className="mt-3 flex flex-col gap-3">
+        {agents.map((agent) => (
+          <li key={agent.role} className="border-t border-border pt-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className={`text-caption font-medium ${accentClass}`}>{agent.role}</span>
+              <span className="font-mono text-caption text-text-dim">
+                {Math.round(agent.confidence * 100)}%{" "}
+                <span className="text-text-dim/60">{agent.grounding}</span>
+              </span>
+            </div>
+            <p className="mt-1 text-caption text-text-dim">{agent.insight}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function KpiCard({
   title,
   subtitle,
@@ -486,7 +541,7 @@ function KpiCard({
   accentClass: string;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-xl border border-border bg-surface p-4">
+    <div className="flex flex-col rounded-xl border border-border bg-surface p-4">
       <h3 className={`font-heading text-h3 ${accentClass}`}>{title}</h3>
       <p className="text-caption text-text-dim">{subtitle}</p>
       <dl className="mt-4 grid grid-cols-1 gap-3 text-caption">
