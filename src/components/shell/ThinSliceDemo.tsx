@@ -61,6 +61,9 @@ export function ThinSliceDemo() {
   const isMountedRef = useRef(true);
   useEffect(() => () => { isMountedRef.current = false; }, []);
 
+  // Skip the mock timer when a real API call is in flight
+  const isApiCallRef = useRef(false);
+
   const [uiStage, setUiStage] = useState<UiStage>(initialUiShellState.uiStage);
   const [runStatus, setRunStatus] = useState<UiRunStatus>(initialUiShellState.runStatus);
   const [decision, setDecision] = useState("");
@@ -73,21 +76,58 @@ export function ThinSliceDemo() {
 
   useEffect(() => {
     if (uiStage !== "running" || runStatus !== "inProgress") return;
+    if (isApiCallRef.current) return;
     const id = window.setTimeout(() => {
+      setPathLabels(derivePathLabels(decision));
       setUiStage("dashboard");
       setRunStatus("completed");
     }, RUN_MOCK_MS);
     return () => window.clearTimeout(id);
-  }, [uiStage, runStatus]);
+  }, [uiStage, runStatus, decision]);
 
   const onSubmit = useCallback(
-    (e: FormEvent) => {
+    async (e: FormEvent) => {
       e.preventDefault();
-      setPathLabels(derivePathLabels(decision));
+
+      // Optimistic labels shown immediately during the running phase
+      const optimisticLabels = derivePathLabels(decision);
+      setPathLabels(optimisticLabels);
+
+      isApiCallRef.current = true;
       setUiStage("running");
       setRunStatus("submitting");
       // P2: Check mount status before the async state update
       queueMicrotask(() => { if (isMountedRef.current) setRunStatus("inProgress"); });
+
+      let finalLabels: [string, string] = optimisticLabels;
+      let finalStatus: UiRunStatus = "completed";
+
+      try {
+        const res = await fetch("/api/simulate", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ decision: decision.trim() }),
+        });
+        const json = await res.json() as { path_labels?: { A: string; B: string } };
+
+        if (res.ok && json.path_labels?.A && json.path_labels?.B) {
+          finalLabels = [json.path_labels.A, json.path_labels.B];
+        } else {
+          finalStatus = "error";
+        }
+      } catch {
+        finalStatus = "error";
+      }
+
+      if (!isMountedRef.current) {
+        isApiCallRef.current = false;
+        return;
+      }
+
+      isApiCallRef.current = false;
+      setPathLabels(finalLabels);
+      setUiStage("dashboard");
+      setRunStatus(finalStatus);
     },
     [decision],
   );
@@ -210,9 +250,9 @@ export function ThinSliceDemo() {
                 aria-label="Error shell"
                 className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 px-5 py-4"
               >
-                <p className="font-heading text-body font-semibold text-text">Error</p>
+                <p className="font-heading text-body font-semibold text-text">Simulation unavailable</p>
                 <p className="mt-1 text-caption text-text-dim">
-                  Deterministic placeholder — Epic wiring will replace this surface.
+                  Could not reach the simulation engine — showing estimated results below.
                 </p>
               </div>
             )}
@@ -223,9 +263,9 @@ export function ThinSliceDemo() {
                 aria-label="Fallback visualization shell"
                 className="mb-4 rounded-xl border border-dashed border-border bg-surface px-5 py-4"
               >
-                <p className="font-heading text-body font-semibold text-text">Fallback</p>
+                <p className="font-heading text-body font-semibold text-text">Fallback mode</p>
                 <p className="mt-1 text-caption text-text-dim">
-                  Deterministic placeholder for fallback viz routing.
+                  Showing cached results — live simulation unavailable.
                 </p>
               </div>
             )}

@@ -1,13 +1,37 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { RUN_MOCK_MS } from "@/lib/ui-state";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThinSliceDemo } from "./ThinSliceDemo";
 
+const mockFetch = vi.fn();
+
+const makeSuccessResponse = (pathA = "Path A", pathB = "Path B") => ({
+  ok: true,
+  json: () =>
+    Promise.resolve({
+      path_labels: { A: pathA, B: pathB },
+      viz_type: "flow",
+    }),
+});
+
+/**
+ * Default fetch mock: resolves after 200 ms via setTimeout so the "running"
+ * stage is visible long enough for assertions before the dashboard transition.
+ */
+const delayedFetch = (response = makeSuccessResponse(), delayMs = 200) =>
+  new Promise((resolve) => window.setTimeout(() => resolve(response), delayMs));
+
 describe("ThinSliceDemo", () => {
+  beforeEach(() => {
+    mockFetch.mockImplementation(() => delayedFetch());
+    vi.stubGlobal("fetch", mockFetch);
+  });
+
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
     vi.useRealTimers();
+    mockFetch.mockReset();
   });
 
   // P5: Assert initial state AND the input shell region (not just data attributes)
@@ -32,7 +56,7 @@ describe("ThinSliceDemo", () => {
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "submitting");
   });
 
-  it("flows input → running → dashboard without API calls", async () => {
+  it("flows input → dashboard after API response", async () => {
     const user = userEvent.setup();
     render(<ThinSliceDemo />);
 
@@ -43,18 +67,6 @@ describe("ThinSliceDemo", () => {
       });
     });
     await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
-
-    expect(await screen.findByRole("region", { name: /simulation running/i })).toBeInTheDocument();
-    expect(screen.getByText(/simulating/i)).toBeInTheDocument();
-
-    await waitFor(
-      () => {
-        const root = screen.getByTestId("thin-slice-root");
-        expect(root).toHaveAttribute("data-ui-stage", "running");
-        expect(["submitting", "inProgress"]).toContain(root.getAttribute("data-run-status"));
-      },
-      { timeout: 2000 },
-    );
 
     await waitFor(
       () =>
@@ -69,15 +81,25 @@ describe("ThinSliceDemo", () => {
     expect(screen.getByText(/\$1\.24M/)).toBeInTheDocument();
   });
 
+  it("shows running stage with three-panel slots via dev panel", async () => {
+    const user = userEvent.setup();
+    render(<ThinSliceDemo />);
+
+    await user.selectOptions(screen.getByLabelText(/dev: uistage/i), "running");
+
+    await waitFor(() => expect(screen.getByTestId("simulation-shell")).toBeInTheDocument());
+    expect(screen.getByRole("region", { name: /simulation running/i })).toBeInTheDocument();
+    expect(screen.getByText(/simulating/i)).toBeInTheDocument();
+    expect(screen.getByTestId("slot-left-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("slot-center-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("slot-right-panel")).toBeInTheDocument();
+  });
+
   it("exposes three-panel slots when running", async () => {
     const user = userEvent.setup();
     render(<ThinSliceDemo />);
-    await act(async () => {
-      fireEvent.change(screen.getByRole("textbox", { name: /decision/i }), {
-        target: { value: "A vs B" },
-      });
-    });
-    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+
+    await user.selectOptions(screen.getByLabelText(/dev: uistage/i), "running");
 
     await waitFor(() => expect(screen.getByTestId("simulation-shell")).toBeInTheDocument());
     expect(screen.getByTestId("slot-left-panel")).toBeInTheDocument();
@@ -151,34 +173,72 @@ describe("ThinSliceDemo", () => {
     await user.tab();
     await user.keyboard("{Enter}");
 
+    // Keyboard submit should trigger the API and eventually reach the dashboard
     await waitFor(
-      () => expect(screen.getByRole("region", { name: /simulation running/i })).toBeInTheDocument(),
-      { timeout: 3000 },
+      () =>
+        expect(screen.getByTestId("thin-slice-root")).toHaveAttribute(
+          "data-ui-stage",
+          "dashboard",
+        ),
+      { timeout: 4000 },
     );
   });
 
-  // P8: Use RUN_MOCK_MS constant instead of hardcoded 1800
-  it("advances runStatus through mock completion with fake timers", async () => {
-    vi.useFakeTimers();
+  it("advances runStatus to completed via API response after submit", async () => {
+    const user = userEvent.setup();
     render(<ThinSliceDemo />);
 
-    await act(async () => {
-      fireEvent.change(screen.getByRole("textbox", { name: /decision/i }), {
-        target: { value: "X vs Y" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: /simulate my decision/i }));
-    });
+    await user.type(screen.getByRole("textbox", { name: /decision/i }), "X vs Y");
+    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
 
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(screen.getByTestId("thin-slice-root").getAttribute("data-run-status")).toBe("inProgress");
-
-    await act(async () => {
-      vi.advanceTimersByTime(RUN_MOCK_MS);
-    });
-
-    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard");
+    await waitFor(
+      () =>
+        expect(screen.getByTestId("thin-slice-root")).toHaveAttribute(
+          "data-ui-stage",
+          "dashboard",
+        ),
+      { timeout: 4000 },
+    );
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "completed");
+  });
+
+  it("reflects real path labels from API in the dashboard", async () => {
+    mockFetch.mockImplementation(() =>
+      delayedFetch(makeSuccessResponse("Open Berlin office", "Expand remote team")),
+    );
+    const user = userEvent.setup();
+    render(<ThinSliceDemo />);
+
+    await user.type(
+      screen.getByRole("textbox", { name: /decision/i }),
+      "Open Berlin office vs expand remote team",
+    );
+    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+
+    await waitFor(
+      () => expect(screen.getByText("Open Berlin office")).toBeInTheDocument(),
+      { timeout: 4000 },
+    );
+    expect(screen.getByText("Expand remote team")).toBeInTheDocument();
+  });
+
+  it("shows error banner and falls back to estimated results when API fails", async () => {
+    mockFetch.mockRejectedValue(new TypeError("Network error"));
+    const user = userEvent.setup();
+    render(<ThinSliceDemo />);
+
+    await user.type(
+      screen.getByRole("textbox", { name: /decision/i }),
+      "Expand west vs deepen existing",
+    );
+    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+
+    await waitFor(
+      () => expect(screen.getByTestId("error-shell")).toBeInTheDocument(),
+      { timeout: 4000 },
+    );
+    expect(screen.getByText(/simulation unavailable/i)).toBeInTheDocument();
+    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard");
+    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "error");
   });
 });

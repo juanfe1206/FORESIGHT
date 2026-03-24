@@ -1,14 +1,29 @@
-import type { ErrorResponse, SimulationResponse } from "@/lib/types";
+import {
+  classifyDecision,
+  ParseError,
+  ProviderError,
+  ProviderTimeoutError,
+} from "@/lib/classifier";
+import type { AgentOutput, ErrorResponse, SimulationResponse } from "@/lib/types";
 import { MOCK_SIMULATION_RESPONSE } from "@/lib/mock-fixture";
 import type { NextRequest } from "next/server";
 import { checkRateLimit } from "./rate-limit";
 import { validateSimulationRequest } from "./validate";
+
+const CLASSIFY_RECOVERY = {
+  canUseCache: true,
+  fallbackViz: true,
+} as const;
 
 const createErrorResponse = (
   code: string,
   message: string,
   recoverable: boolean,
   status: number,
+  recovery: ErrorResponse["recovery"] = {
+    canUseCache: false,
+    fallbackViz: false,
+  },
 ): Response => {
   const errorBody: ErrorResponse = {
     runId: `run_${Date.now()}`,
@@ -18,14 +33,19 @@ const createErrorResponse = (
       message,
       recoverable,
     },
-    recovery: {
-      canUseCache: false,
-      fallbackViz: false,
-    },
+    recovery,
   };
 
   return Response.json(errorBody, { status });
 };
+
+const buildAgentStubs = (roles: [string, string, string, string]): AgentOutput[] =>
+  roles.map((role) => ({
+    role,
+    insight: "",
+    confidence: 0,
+    grounding: "assumed",
+  }));
 
 const getClientIp = (request: Request): string => {
   const forwardedFor = request.headers.get("x-forwarded-for");
@@ -70,13 +90,63 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    const responseBody: SimulationResponse = {
-      ...MOCK_SIMULATION_RESPONSE,
-      runId: `run_${Date.now()}`,
-      status: "completed",
-    };
+    const model = process.env.LLM_MODEL_PARSE_CLASSIFY ?? "gpt-4o-mini";
+    const timeoutMs = Number(process.env.SIMULATION_TIMEOUT_MS ?? "30000");
 
-    return Response.json(responseBody, { status: 200 });
+    try {
+      const { path_labels, viz_type, roles } = await classifyDecision(
+        validation.data.decision,
+        validation.data.context,
+        process.env.LLM_API_KEY,
+        model,
+        timeoutMs,
+      );
+      const agentStubs = buildAgentStubs(roles);
+
+      const responseBody: SimulationResponse = {
+        ...MOCK_SIMULATION_RESPONSE,
+        runId: `run_${Date.now()}`,
+        status: "completed",
+        viz_type,
+        path_labels,
+        paths: {
+          A: { ...MOCK_SIMULATION_RESPONSE.paths.A, agents: agentStubs },
+          B: { ...MOCK_SIMULATION_RESPONSE.paths.B, agents: agentStubs },
+        },
+      };
+
+      return Response.json(responseBody, { status: 200 });
+    } catch (error) {
+      if (error instanceof ProviderTimeoutError) {
+        return createErrorResponse(
+          "PROVIDER_TIMEOUT",
+          "Simulation timed out. Try again.",
+          true,
+          504,
+          CLASSIFY_RECOVERY,
+        );
+      }
+      if (error instanceof ProviderError) {
+        return createErrorResponse(
+          "PROVIDER_ERROR",
+          "Simulation provider unavailable.",
+          true,
+          502,
+          CLASSIFY_RECOVERY,
+        );
+      }
+      if (error instanceof ParseError) {
+        return createErrorResponse(
+          "PARSE_ERROR",
+          "Could not interpret simulation result.",
+          true,
+          502,
+          CLASSIFY_RECOVERY,
+        );
+      }
+      throw error;
+    }
+
   } catch (err) {
     console.error("[/api/simulate] Unexpected error:", err);
     return createErrorResponse(
