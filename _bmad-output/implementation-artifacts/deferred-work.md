@@ -30,3 +30,9 @@
 - AC3 compliance (no "waiting for Epic 6" wording in `epics.md`) not verified within this diff; planning artifact outside the changeset.
 - Module-level fixture null-safety not guarded at runtime; TypeScript `satisfies SimulationResponse` provides compile-time coverage — no runtime issue expected.
 - Dual public names `MOCK_BAKERY_MAP_FIXTURE` / `MOCK_SIMULATION_RESPONSE` could cause import drift over time. Alias is intentional per spec; consider consolidating in a future cleanup pass.
+
+## Deferred from: code review of 2-1-simulate-api-route-scaffold-environment-wiring (2026-03-24)
+
+- Rate limiter `store` in `rate-limit.ts` accumulates Map entries for every unique IP that has ever made a request; old timestamps are evicted but the key is never removed. Memory grows proportionally to the number of unique IPs over the process lifetime. Acceptable for MVP/hackathon; revisit if a persistent rate-limit store (e.g. Redis) is added.
+- `x-forwarded-for` header can be forged by a client to rotate through arbitrary IPs and bypass per-IP rate limiting. Known limitation of header-based IP detection without a trusted-proxy layer. Acceptable for MVP; document in security posture notes if the product moves to production.
+- `decision` field is validated for non-empty *after trim* but stored in `SimulationRequest.data` untrimmed. Clients can send leading/trailing whitespace that passes validation. Will be fed as-is to LLM prompt construction in Story 2.2+; consider trimming the stored value in Story 2.2 when the field is first used.
