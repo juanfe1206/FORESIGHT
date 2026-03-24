@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FORESIGHT UX Color Themes</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #0f1923; color: #f0f4f8; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .card { border: 1px solid #2a3a4a; border-radius: 12px; overflow: hidden; background: #1b2838; }
+    .head { padding: 12px; font-weight: 700; border-bottom: 1px solid #2a3a4a; }
+    .swatch { height: 38px; display: flex; align-items: center; padding: 0 10px; font-size: 12px; }
+    .meta { padding: 10px; color: #8892a0; font-size: 12px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>FORESIGHT Color Theme Visualizer</h1>
+    <p>Reference themes aligned to the approved dark command-center direction.</p>
+
+    <div class="grid">
+      <section class="card">
+        <div class="head">Theme A - Approved Baseline</div>
+        <div class="swatch" style="background:#0f1923;">BG #0F1923</div>
+        <div class="swatch" style="background:#1b2838;">Surface #1B2838</div>
+        <div class="swatch" style="background:#00d4aa;color:#0f1923;">Accent #00D4AA</div>
+        <div class="swatch" style="background:#2196f3;">Info #2196F3</div>
+        <div class="swatch" style="background:#ff4757;">Risk #FF4757</div>
+        <div class="meta">Best default for MVP and readability.</div>
+      </section>
+
+      <section class="card">
+        <div class="head">Theme B - Cooler Professional</div>
+        <div class="swatch" style="background:#0b1420;">BG #0B1420</div>
+        <div class="swatch" style="background:#1a2432;">Surface #1A2432</div>
+        <div class="swatch" style="background:#35d7ff;color:#0b1420;">Accent #35D7FF</div>
+        <div class="swatch" style="background:#7b68ee;">Network #7B68EE</div>
+        <div class="swatch" style="background:#ff6b35;">Warn #FF6B35</div>
+        <div class="meta">Alternative if you want a more analytic tone.</div>
+      </section>
+
+      <section class="card">
+        <div class="head">Theme C - Contrast Boost</div>
+        <div class="swatch" style="background:#101824;">BG #101824</div>
+        <div class="swatch" style="background:#202f42;">Surface #202F42</div>
+        <div class="swatch" style="background:#3beec8;color:#101824;">Accent #3BEEC8</div>
+        <div class="swatch" style="background:#ffd700;color:#101824;">Finance #FFD700</div>
+        <div class="swatch" style="background:#ff4757;">Risk #FF4757</div>
+        <div class="meta">Higher contrast for projection-heavy demos.</div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

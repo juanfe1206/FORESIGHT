@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FORESIGHT - UX Design Directions</title>
+  <style>
+    :root {
+      --bg: #0f1923;
+      --surface: #1b2838;
+      --surface-2: #223447;
+      --border: #2a3a4a;
+      --text: #f0f4f8;
+      --text-dim: #8892a0;
+      --accent: #00d4aa;
+      --blue: #2196f3;
+      --red: #ff4757;
+      --gold: #ffd700;
+      --purple: #7b68ee;
+      --warm: #ff6b35;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.4;
+    }
+
+    .wrap {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    h1, h2, h3 { margin: 0 0 10px; }
+    p { margin: 0 0 8px; color: var(--text-dim); }
+
+    .hero {
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, #132235, #0f1923);
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+
+    .chip {
+      display: inline-block;
+      border: 1px solid var(--border);
+      background: #142636;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      margin-right: 8px;
+      margin-top: 6px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    button {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.active, button:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(0, 212, 170, 0.35) inset;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      min-height: 220px;
+    }
+    .card h3 { font-size: 16px; }
+    .meta { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+    .pill {
+      display: inline-block;
+      font-size: 11px;
+      border-radius: 999px;
+      padding: 2px 8px;
+      margin-right: 6px;
+      margin-bottom: 6px;
+      border: 1px solid var(--border);
+      color: var(--text);
+      background: #1a2e3f;
+    }
+
+    .preview {
+      margin-top: 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      padding: 10px;
+      min-height: 95px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel {
+      position: absolute;
+      top: 10px;
+      bottom: 10px;
+      width: 31%;
+      border: 1px solid #355067;
+      border-radius: 8px;
+      background: #173046;
+    }
+    .panel.left { left: 10px; }
+    .panel.center { left: 34.5%; width: 31%; background: #1a374d; }
+    .panel.right { right: 10px; }
+
+    .bar {
+      height: 7px;
+      border-radius: 4px;
+      margin: 8px 0;
+      background: #30485f;
+    }
+    .bar.accent { background: linear-gradient(90deg, var(--accent), #3beec8); width: 68%; }
+    .bar.blue { background: linear-gradient(90deg, var(--blue), #59b2f7); width: 56%; }
+    .bar.red { background: linear-gradient(90deg, var(--red), #ff7d88); width: 40%; }
+    .bar.gold { background: linear-gradient(90deg, var(--gold), #ffe879); width: 60%; }
+
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .dot {
+      width: 10px; height: 10px; border-radius: 999px; display: inline-block; margin-right: 4px;
+    }
+
+    .notes {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      background: var(--surface);
+    }
+
+    @media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>FORESIGHT - Design Direction Mockups</h1>
+      <p>Step 9 exploration. Six visual directions using the approved dark command-center foundation and desktop-first A/B layout.</p>
+      <span class="chip">Map / Flow / Network compatible</span>
+      <span class="chip">Center KPI/HUD anchor</span>
+      <span class="chip">Decision clarity first</span>
+    </section>
+
+    <div class="toolbar">
+      <button class="active" onclick="filterCards('all', this)">Show All</button>
+      <button onclick="filterCards('low', this)">Low Density</button>
+      <button onclick="filterCards('balanced', this)">Balanced</button>
+      <button onclick="filterCards('high', this)">High Density</button>
+      <button onclick="filterCards('experimental', this)">Experimental</button>
+    </div>
+
+    <section class="grid">
+      <article class="card" data-group="balanced">
+        <h3>Direction 1 - Balanced Command Center</h3>
+        <div class="meta">Best for first-release reliability and fast comprehension.</div>
+        <span class="pill">Balanced</span><span class="pill">Low Risk</span><span class="pill">Hackathon-friendly</span>
+        <div class="preview">
+          <div class="panel left"></div><div class="panel center"></div><div class="panel right"></div>
+        </div>
+      </article>
+
+      <article class="card" data-group="low">
+        <h3>Direction 2 - Minimal Clarity</h3>
+        <div class="meta">Stripped visual noise with stronger typography and whitespace.</div>
+        <span class="pill">Low Density</span><span class="pill">Fast Scan</span><span class="pill">Calm Tone</span>
+        <div class="preview">
+          <div class="panel left"></div><div class="panel center"></div><div class="panel right"></div>
+          <div style="position:absolute; left:12px; right:12px; bottom:8px;">
+            <div class="bar accent"></div><div class="bar blue"></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card" data-group="high">
+        <h3>Direction 3 - Data-Dense Analyst</h3>
+        <div class="meta">More metrics and microcharts visible at once in center stack.</div>
+        <span class="pill">High Density</span><span class="pill">Power User</span><span class="pill">Verbose KPIs</span>
+        <div class="preview">
+          <div class="panel left"></div><div class="panel center"></div><div class="panel right"></div>
+          <div style="position:absolute; left:36.5%; width:27%; top:14px;">
+            <div class="bar accent"></div><div class="bar red"></div><div class="bar blue"></div><div class="bar gold"></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card" data-group="balanced">
+        <h3>Direction 4 - Story-First Simulation</h3>
+        <div class="meta">Emphasizes narrative progression before KPI summary.</div>
+        <span class="pill">Balanced</span><span class="pill">Narrative</span><span class="pill">Trust-Building</span>
+        <div class="preview">
+          <div class="panel left"></div><div class="panel center"></div><div class="panel right"></div>
+          <div style="position:absolute; left:37%; width:26%; top:18px; color:#cde1f3; font-size:10px;">
+            Month 1 -> Month 2 -> Month 3
+          </div>
+        </div>
+      </article>
+
+      <article class="card" data-group="experimental">
+        <h3>Direction 5 - Mode-Forward Adaptive UI</h3>
+        <div class="meta">Strong mode identity (Map/Flow/Network) with larger visual mode badges.</div>
+        <span class="pill">Experimental</span><span class="pill">Strong Identity</span><span class="pill">Higher Motion</span>
+        <div class="preview">
+          <div class="panel left"></div><div class="panel center"></div><div class="panel right"></div>
+          <div style="position:absolute; left:10px; top:8px; background:#31577a; border-radius:999px; font-size:10px; padding:2px 7px;">MAP MODE</div>
+          <div style="position:absolute; right:10px; top:8px; background:#2b6f63; border-radius:999px; font-size:10px; padding:2px 7px;">FLOW MODE</div>
+        </div>
+      </article>
+
+      <article class="card" data-group="balanced">
+        <h3>Direction 6 - KPI-Centric Comparison</h3>
+        <div class="meta">Center panel dominates; side panels are lighter context rails.</div>
+        <span class="pill">Balanced</span><span class="pill">Decision Speed</span><span class="pill">Demo Safe</span>
+        <div class="preview">
+          <div class="panel left" style="width:24%;"></div>
+          <div class="panel center" style="left:27%; width:46%;"></div>
+          <div class="panel right" style="width:24%;"></div>
+          <div style="position:absolute; left:30%; width:40%; top:14px;">
+            <div class="bar accent"></div><div class="bar gold"></div><div class="bar blue"></div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="notes">
+      <h2>Evaluation Guide</h2>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--accent)"></span>Clarity</span>
+        <span><span class="dot" style="background:var(--blue)"></span>Trust / Progress</span>
+        <span><span class="dot" style="background:var(--gold)"></span>Decision Speed</span>
+        <span><span class="dot" style="background:var(--red)"></span>Cognitive Load Risk</span>
+      </div>
+      <p style="margin-top:10px;">
+        Recommendation for FORESIGHT MVP: start from <b>Direction 1</b> or <b>Direction 6</b>, then merge selected elements from Direction 4 (story clarity) and Direction 5 (mode identity).
+      </p>
+    </section>
+  </div>
+
+  <script>
+    function filterCards(group, btn) {
+      const cards = document.querySelectorAll(".card");
+      cards.forEach((c) => {
+        c.style.display = (group === "all" || c.dataset.group === group) ? "block" : "none";
+      });
+      document.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+    }
+  </script>
+</body>
+</html>
