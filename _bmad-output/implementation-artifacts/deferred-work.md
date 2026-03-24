@@ -20,6 +20,17 @@
 - `ui-state.ts` omits optional reducer/event scaffolding noted in File Structure Guidance. Explicitly optional in spec; add when state complexity warrants it.
 - Error/fallback shells animate in/out inconsistently (outside `AnimatePresence`). Aesthetic only; no AC requires animation for skeletal error/fallback shells.
 
+## Deferred from: code review of 4-1-mode-badge-map-shell-integration (2026-03-24)
+
+- `VIZ_TYPES` runtime array in `ui-state.ts` duplicates the `VizType` union literals — drift risk if union extends; single authoritative source preferred.
+- `onSubmit` hardcodes `MOCK_BAKERY_MAP_FIXTURE.viz_type` without `isVizType` guard — typed TypeScript covers it now; guard warranted when real API response replaces the fixture in Epic 6.
+- Default context no-op setters for `setVizType` — silent failure when consuming outside a Provider; consider a dev-mode invariant or warning.
+- Tests don't assert `VizOrientationBand` presence in `dashboard` / `deepDive` stages — AC5 minimally satisfied; coverage gap is not a regression.
+- `page.tsx` re-exports `isVizType` / `VizType` from route module — widens public surface of a page entry point; revisit if import confusion arises.
+- `aria-live="polite"` on `ModeBadge` with `role="status"` — may generate noisy SR announcements if multiple badge instances appear in one render cycle; audit in a11y pass.
+- `VizMapSideCanvas` returns bare fragment for non-map modes — no reserved region; side-panel height jumps on viz switch. Intentional per AC3 scope (map-only); revisit in Epic 3/5 VizRouter work.
+- Dev `vizType` `<select>` options in `ThinSliceDemo` are hard-coded separately from `VIZ_TYPES` constant — could drift from the union; consolidate in a cleanup pass.
+
 ## Deferred from: code review of 1-4-parallel-integration-contract-ownership-boundaries (2026-03-25)
 
 - Slot mounting guide maps `running` to PanelSlots but `ThinSliceDemo.tsx` mounts via `SimulationShell` props directly. Guide is intentionally conceptual; Epic 5 devs will cross-reference `ThinSliceDemo.tsx` directly.

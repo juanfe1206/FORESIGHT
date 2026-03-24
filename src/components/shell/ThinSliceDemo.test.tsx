@@ -85,6 +85,39 @@ describe("ThinSliceDemo", () => {
     expect(screen.getByTestId("slot-right-panel")).toBeInTheDocument();
   });
 
+  it("shows mode badge and map canvas regions in map mode when running", async () => {
+    const user = userEvent.setup();
+    render(<ThinSliceDemo />);
+    await user.selectOptions(screen.getByLabelText(/dev: uistage/i), "running");
+
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: /simulation running/i })).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-viz-type", "map");
+    expect(screen.getByTestId("mode-badge-label")).toHaveTextContent("Map");
+    expect(screen.getByTestId("viz-orientation-band")).toBeInTheDocument();
+    expect(screen.getByTestId("map-canvas-region-left")).toBeInTheDocument();
+    expect(screen.getByTestId("map-canvas-region-right")).toBeInTheDocument();
+  });
+
+  it("hides map canvas wrappers when vizType is not map", async () => {
+    const user = userEvent.setup();
+    render(<ThinSliceDemo />);
+    await user.selectOptions(screen.getByLabelText(/dev: uistage/i), "running");
+
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: /simulation running/i })).toBeInTheDocument();
+    });
+
+    await user.selectOptions(screen.getByTestId("dev-viz-type-preview"), "flow");
+
+    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-viz-type", "flow");
+    expect(screen.getByTestId("mode-badge-label")).toHaveTextContent("Flow");
+    expect(screen.queryByTestId("map-canvas-region-left")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("map-canvas-region-right")).not.toBeInTheDocument();
+  });
+
   it("renders dashboard stage with KPI slots", async () => {
     const user = userEvent.setup();
     render(<ThinSliceDemo />);

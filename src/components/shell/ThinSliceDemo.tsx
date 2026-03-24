@@ -7,13 +7,18 @@ import {
   initialUiShellState,
   isUiRunStatus,
   isUiStage,
+  isVizType,
   type UiRunStatus,
   type UiStage,
 } from "@/lib/ui-state";
 import { UiShellContext } from "@/lib/ui-shell-context";
+import { MOCK_BAKERY_MAP_FIXTURE } from "@/lib/mock-fixture";
+import type { VizType } from "@/lib/types";
 import { buildThinSliceMockComparison } from "@/lib/thin-slice-mock";
+import { ModeBadge } from "@/components/running/ModeBadge";
 import { CenterPanelSlot, LeftPanelSlot, RightPanelSlot } from "./PanelSlots";
 import { SimulationShell } from "./SimulationShell";
+import { VizMapSideCanvas } from "./VizMapSideCanvas";
 
 const springTransition = { type: "spring" as const, stiffness: 320, damping: 28 };
 
@@ -54,6 +59,17 @@ function derivePathLabels(decision: string): [string, string] {
   return ["Path A", "Path B"];
 }
 
+function VizOrientationBand({ vizType }: { vizType: VizType }) {
+  return (
+    <div
+      data-testid="viz-orientation-band"
+      className="flex shrink-0 items-center border-b border-border pb-3"
+    >
+      <ModeBadge vizType={vizType} />
+    </div>
+  );
+}
+
 export function ThinSliceDemo() {
   const isDevPreviewEnabled = process.env.NODE_ENV !== "production";
 
@@ -63,6 +79,7 @@ export function ThinSliceDemo() {
 
   const [uiStage, setUiStage] = useState<UiStage>(initialUiShellState.uiStage);
   const [runStatus, setRunStatus] = useState<UiRunStatus>(initialUiShellState.runStatus);
+  const [vizType, setVizType] = useState<VizType>(initialUiShellState.vizType);
   const [decision, setDecision] = useState("");
   const [pathLabels, setPathLabels] = useState<[string, string]>(["Path A", "Path B"]);
 
@@ -84,6 +101,7 @@ export function ThinSliceDemo() {
     (e: FormEvent) => {
       e.preventDefault();
       setPathLabels(derivePathLabels(decision));
+      setVizType(MOCK_BAKERY_MAP_FIXTURE.viz_type);
       setUiStage("running");
       setRunStatus("submitting");
       // P2: Check mount status before the async state update
@@ -95,6 +113,7 @@ export function ThinSliceDemo() {
   const resetToInput = useCallback(() => {
     setUiStage("input");
     setRunStatus("idle");
+    setVizType(initialUiShellState.vizType);
     setDecision("");
   }, []);
 
@@ -132,15 +151,21 @@ export function ThinSliceDemo() {
     [onDevRunStatusChange],
   );
 
+  const handleVizTypeSelectChange = useCallback((ev: React.ChangeEvent<HTMLSelectElement>) => {
+    const v = ev.target.value;
+    if (isVizType(v)) setVizType(v);
+  }, []);
+
   return (
     // D1: Provide live uiStage / runStatus to the subtree (satisfies AC1)
-    <UiShellContext.Provider value={{ uiStage, runStatus, setUiStage, setRunStatus }}>
+    <UiShellContext.Provider value={{ uiStage, runStatus, vizType, setUiStage, setRunStatus, setVizType }}>
       <MotionConfig reducedMotion="user">
         <div
           className="flex flex-1 flex-col"
           data-testid="thin-slice-root"
           data-ui-stage={uiStage}
           data-run-status={runStatus}
+          data-viz-type={vizType}
         >
           <header className="border-b border-border px-6 py-4 lg:px-10">
             <p className="font-heading text-caption uppercase tracking-wider text-text-dim">
@@ -191,6 +216,23 @@ export function ThinSliceDemo() {
                   <option value="completed">completed</option>
                   <option value="fallback">fallback (shell)</option>
                   <option value="error">error (shell)</option>
+                </select>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor="dev-viz-type" className="font-medium text-text">
+                  vizType
+                </label>
+                <select
+                  id="dev-viz-type"
+                  value={vizType}
+                  onChange={handleVizTypeSelectChange}
+                  data-testid="dev-viz-type-preview"
+                  className="rounded border border-border bg-bg px-2 py-1 text-body text-text"
+                >
+                  <option value="map">map</option>
+                  <option value="flow">flow</option>
+                  <option value="network">network</option>
+                  <option value="fallback">fallback</option>
                 </select>
               </div>
               <span className="hidden sm:inline">(non-production only)</span>
@@ -277,21 +319,24 @@ export function ThinSliceDemo() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={springTransition}
-                  className="flex flex-1 flex-col"
+                  className="flex flex-1 flex-col gap-4"
                 >
+                  <VizOrientationBand vizType={vizType} />
                   <SimulationShell
                     leftAriaLabel="Path A visualization slot"
                     centerAriaLabel="Agent HUD and progress slot"
                     rightAriaLabel="Path B visualization slot"
                     left={
-                      <motion.article
-                        {...panelMotion}
-                        transition={springTransition}
-                        className={runCardClassLeft}
-                      >
-                        <h2 className="font-heading text-h3 text-accent">{pathLabels[0]}</h2>
-                        <p className="mt-2 text-caption text-text-dim">Path A — framing</p>
-                      </motion.article>
+                      <VizMapSideCanvas side="left" vizType={vizType}>
+                        <motion.article
+                          {...panelMotion}
+                          transition={springTransition}
+                          className={runCardClassLeft}
+                        >
+                          <h2 className="font-heading text-h3 text-accent">{pathLabels[0]}</h2>
+                          <p className="mt-2 text-caption text-text-dim">Path A — framing</p>
+                        </motion.article>
+                      </VizMapSideCanvas>
                     }
                     center={
                       <motion.article
@@ -304,14 +349,16 @@ export function ThinSliceDemo() {
                       </motion.article>
                     }
                     right={
-                      <motion.article
-                        {...panelMotion}
-                        transition={{ ...springTransition, delay: 0.1 }}
-                        className={runCardClassRight}
-                      >
-                        <h2 className="font-heading text-h3 text-blue">{pathLabels[1]}</h2>
-                        <p className="mt-2 text-caption text-text-dim">Path B — framing</p>
-                      </motion.article>
+                      <VizMapSideCanvas side="right" vizType={vizType}>
+                        <motion.article
+                          {...panelMotion}
+                          transition={{ ...springTransition, delay: 0.1 }}
+                          className={runCardClassRight}
+                        >
+                          <h2 className="font-heading text-h3 text-blue">{pathLabels[1]}</h2>
+                          <p className="mt-2 text-caption text-text-dim">Path B — framing</p>
+                        </motion.article>
+                      </VizMapSideCanvas>
                     }
                   />
                 </motion.section>
@@ -325,21 +372,24 @@ export function ThinSliceDemo() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={springTransition}
-                  className="flex flex-1 flex-col gap-6"
+                  className="flex flex-1 flex-col gap-4"
                 >
+                  <VizOrientationBand vizType={vizType} />
                   <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
                     <LeftPanelSlot
                       aria-label="Path A summary and KPI slot"
                       className="order-1 lg:order-1"
                     >
-                      <motion.div {...panelMotion} transition={springTransition} className="h-full">
-                        <KpiCard
-                          title={mockComparison.pathA.label}
-                          subtitle="Path A"
-                          kpis={mockComparison.pathA.kpis}
-                          accentClass="text-accent"
-                        />
-                      </motion.div>
+                      <VizMapSideCanvas side="left" vizType={vizType}>
+                        <motion.div {...panelMotion} transition={springTransition} className="h-full">
+                          <KpiCard
+                            title={mockComparison.pathA.label}
+                            subtitle="Path A"
+                            kpis={mockComparison.pathA.kpis}
+                            accentClass="text-accent"
+                          />
+                        </motion.div>
+                      </VizMapSideCanvas>
                     </LeftPanelSlot>
                     <CenterPanelSlot
                       aria-label="KPI stack and comparison slot"
@@ -360,24 +410,26 @@ export function ThinSliceDemo() {
                       aria-label="Path B summary and KPI slot"
                       className="order-3 lg:order-3"
                     >
-                      <motion.div
-                        {...panelMotion}
-                        transition={{ ...springTransition, delay: 0.1 }}
-                        className="h-full"
-                      >
-                        <KpiCard
-                          title={mockComparison.pathB.label}
-                          subtitle="Path B"
-                          kpis={mockComparison.pathB.kpis}
-                          accentClass="text-blue"
-                        />
-                      </motion.div>
+                      <VizMapSideCanvas side="right" vizType={vizType}>
+                        <motion.div
+                          {...panelMotion}
+                          transition={{ ...springTransition, delay: 0.1 }}
+                          className="h-full"
+                        >
+                          <KpiCard
+                            title={mockComparison.pathB.label}
+                            subtitle="Path B"
+                            kpis={mockComparison.pathB.kpis}
+                            accentClass="text-blue"
+                          />
+                        </motion.div>
+                      </VizMapSideCanvas>
                     </RightPanelSlot>
                   </div>
                   <button
                     type="button"
                     onClick={resetToInput}
-                    className="self-start rounded-lg border border-border px-4 py-2 text-caption text-text hover:border-accent"
+                    className="w-full rounded-lg border border-border py-3 text-body text-text transition hover:border-accent hover:text-accent sm:mx-auto sm:max-w-xs"
                   >
                     Start over
                   </button>
@@ -392,30 +444,39 @@ export function ThinSliceDemo() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={springTransition}
-                  className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2.2fr)_minmax(0,1fr)] lg:gap-6"
-                  data-testid="deep-dive-shell"
+                  className="flex flex-1 flex-col gap-4"
                 >
-                  <LeftPanelSlot
-                    aria-label="Deep dive compressed Path A strip"
-                    className="min-h-24 rounded-xl border border-border bg-surface p-3 lg:min-h-auto"
+                  <VizOrientationBand vizType={vizType} />
+                  <div
+                    className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2.2fr)_minmax(0,1fr)] lg:gap-6"
+                    data-testid="deep-dive-shell"
                   >
-                    <p className="text-caption text-text-dim">Compressed strip — Path A context</p>
-                  </LeftPanelSlot>
-                  <CenterPanelSlot
-                    aria-label="Deep dive narrative and tab container slot"
-                    className="min-h-64 rounded-xl border border-border bg-surface p-6 lg:min-h-auto"
-                  >
-                    <p className="font-heading text-h3 text-text">Deep dive</p>
-                    <p className="mt-2 text-body text-text-dim">
-                      Expanded center — narrative / tabs mount here (skeletal).
-                    </p>
-                  </CenterPanelSlot>
-                  <RightPanelSlot
-                    aria-label="Deep dive compressed Path B strip"
-                    className="min-h-24 rounded-xl border border-border bg-surface p-3 lg:min-h-auto"
-                  >
-                    <p className="text-caption text-text-dim">Compressed strip — Path B context</p>
-                  </RightPanelSlot>
+                    <LeftPanelSlot
+                      aria-label="Deep dive compressed Path A strip"
+                      className="min-h-24 rounded-xl border border-border bg-surface p-3 lg:min-h-auto"
+                    >
+                      <VizMapSideCanvas side="left" vizType={vizType}>
+                        <p className="text-caption text-text-dim">Compressed strip — Path A context</p>
+                      </VizMapSideCanvas>
+                    </LeftPanelSlot>
+                    <CenterPanelSlot
+                      aria-label="Deep dive narrative and tab container slot"
+                      className="min-h-64 rounded-xl border border-border bg-surface p-6 lg:min-h-auto"
+                    >
+                      <p className="font-heading text-h3 text-text">Deep dive</p>
+                      <p className="mt-2 text-body text-text-dim">
+                        Expanded center — narrative / tabs mount here (skeletal).
+                      </p>
+                    </CenterPanelSlot>
+                    <RightPanelSlot
+                      aria-label="Deep dive compressed Path B strip"
+                      className="min-h-24 rounded-xl border border-border bg-surface p-3 lg:min-h-auto"
+                    >
+                      <VizMapSideCanvas side="right" vizType={vizType}>
+                        <p className="text-caption text-text-dim">Compressed strip — Path B context</p>
+                      </VizMapSideCanvas>
+                    </RightPanelSlot>
+                  </div>
                 </motion.section>
               )}
 
