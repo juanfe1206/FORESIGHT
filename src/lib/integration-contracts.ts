@@ -15,11 +15,14 @@ export interface VizSlotProps {
 
 /**
  * Center panel while simulation is running (Epic 5).
+ * Dual-path agent animation — both paths progress in parallel (Story 5.1).
  */
 export interface AgentHudSlotProps {
-  agentStates: AgentState[];
-  roles: string[];
   viz_type: VizType;
+  roles: string[];
+  pathLabels: { A: string; B: string };
+  agentStatesByPath: { A: AgentState[]; B: AgentState[] };
+  insightsByPath?: { A: (string | undefined)[]; B: (string | undefined)[] };
 }
 
 /**
@@ -55,10 +58,13 @@ export const MOCK_VIZ_SLOT_PROPS_A: VizSlotProps = {
   pathLabel: fx.path_labels.A,
 };
 
+const dormant4 = (): AgentState[] => ["dormant", "dormant", "dormant", "dormant"];
+
 export const MOCK_AGENT_HUD_PROPS: AgentHudSlotProps = {
-  agentStates: ["dormant", "dormant", "dormant", "dormant"],
-  roles: [...AGENT_ROLES.map],
-  viz_type: "map",
+  viz_type: fx.viz_type,
+  roles: [...AGENT_ROLES[fx.viz_type]],
+  pathLabels: { ...fx.path_labels },
+  agentStatesByPath: { A: dormant4(), B: dormant4() },
 };
 
 export const MOCK_KPI_STACK_PROPS: KpiStackSlotProps = {

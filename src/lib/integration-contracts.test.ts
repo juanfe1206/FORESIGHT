@@ -42,8 +42,14 @@ describe("integration-contracts", () => {
     expect(["A", "B"]).toContain(MOCK_KPI_STACK_PROPS.comparison.overallWinner);
   });
 
-  it("MOCK_AGENT_HUD_PROPS has four agent state slots", () => {
-    expect(MOCK_AGENT_HUD_PROPS.agentStates).toHaveLength(4);
+  it("MOCK_AGENT_HUD_PROPS has four agent state slots per path", () => {
+    expect(MOCK_AGENT_HUD_PROPS.agentStatesByPath.A).toHaveLength(4);
+    expect(MOCK_AGENT_HUD_PROPS.agentStatesByPath.B).toHaveLength(4);
+  });
+
+  it("MOCK_AGENT_HUD_PROPS has fixture path labels", () => {
+    expect(MOCK_AGENT_HUD_PROPS.pathLabels.A.length).toBeGreaterThan(0);
+    expect(MOCK_AGENT_HUD_PROPS.pathLabels.B.length).toBeGreaterThan(0);
   });
 
   it("MOCK_AGENT_HUD_PROPS uses a valid VizType", () => {

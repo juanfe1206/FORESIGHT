@@ -32,7 +32,9 @@ describe("ThinSliceDemo", () => {
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "submitting");
   });
 
-  it("flows input → running → dashboard without API calls", async () => {
+  it(
+    "flows input → running → dashboard without API calls",
+    async () => {
     const user = userEvent.setup();
     render(<ThinSliceDemo />);
 
@@ -45,7 +47,7 @@ describe("ThinSliceDemo", () => {
     await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
 
     expect(await screen.findByRole("region", { name: /simulation running/i })).toBeInTheDocument();
-    expect(screen.getByText(/simulating/i)).toBeInTheDocument();
+    expect(screen.getByTestId("agent-hud")).toBeInTheDocument();
 
     await waitFor(
       () => {
@@ -61,13 +63,15 @@ describe("ThinSliceDemo", () => {
         expect(
           screen.getByRole("region", { name: /mock comparison dashboard/i }),
         ).toBeInTheDocument(),
-      { timeout: 4000 },
+      { timeout: 7000 },
     );
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard");
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "completed");
     expect(screen.getByText(/mock outcome/i)).toBeInTheDocument();
     expect(screen.getByText(/\$1\.24M/)).toBeInTheDocument();
-  });
+    },
+    15_000,
+  );
 
   it("exposes three-panel slots when running", async () => {
     const user = userEvent.setup();
@@ -85,7 +89,9 @@ describe("ThinSliceDemo", () => {
     expect(screen.getByTestId("slot-right-panel")).toBeInTheDocument();
   });
 
-  it("renders dashboard stage with KPI slots", async () => {
+  it(
+    "renders dashboard stage with KPI slots",
+    async () => {
     const user = userEvent.setup();
     render(<ThinSliceDemo />);
     await act(async () => {
@@ -98,12 +104,14 @@ describe("ThinSliceDemo", () => {
     await waitFor(
       () =>
         expect(screen.getByRole("region", { name: /mock comparison dashboard/i })).toBeInTheDocument(),
-      { timeout: 4000 },
+      { timeout: 7000 },
     );
     expect(screen.getAllByTestId("slot-left-panel").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByTestId("slot-center-panel").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByTestId("slot-right-panel").length).toBeGreaterThanOrEqual(1);
-  });
+    },
+    15_000,
+  );
 
   it("renders deep dive shell with compressed side strips", async () => {
     const user = userEvent.setup();

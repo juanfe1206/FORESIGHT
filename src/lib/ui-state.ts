@@ -23,8 +23,11 @@ export const initialUiShellState: UiShellState = {
   runStatus: "idle",
 };
 
-/** Mock simulation run duration in milliseconds. */
-export const RUN_MOCK_MS = 1800;
+/**
+ * Mock simulation run duration in milliseconds.
+ * Last agent completes at ~2660 ms; this adds ~840 ms of settled "complete" view before dashboard.
+ */
+export const RUN_MOCK_MS = 3500;
 
 const UI_STAGES: readonly UiStage[] = ["input", "running", "dashboard", "deepDive"];
 const UI_RUN_STATUSES: readonly UiRunStatus[] = [

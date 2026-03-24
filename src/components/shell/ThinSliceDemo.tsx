@@ -11,7 +11,11 @@ import {
   type UiStage,
 } from "@/lib/ui-state";
 import { UiShellContext } from "@/lib/ui-shell-context";
+import { AgentHUD } from "@/components/agents/AgentHUD";
 import { buildThinSliceMockComparison } from "@/lib/thin-slice-mock";
+import { AGENT_ROLES } from "@/lib/types";
+import type { AgentState } from "@/lib/types";
+import { MOCK_BAKERY_MAP_FIXTURE } from "@/lib/mock-fixture";
 import { CenterPanelSlot, LeftPanelSlot, RightPanelSlot } from "./PanelSlots";
 import { SimulationShell } from "./SimulationShell";
 
@@ -66,19 +70,81 @@ export function ThinSliceDemo() {
   const [decision, setDecision] = useState("");
   const [pathLabels, setPathLabels] = useState<[string, string]>(["Path A", "Path B"]);
 
+  const dormantRow = useMemo(
+    (): [AgentState, AgentState, AgentState, AgentState] => [
+      "dormant",
+      "dormant",
+      "dormant",
+      "dormant",
+    ],
+    [],
+  );
+
+  const [agentStatesByPath, setAgentStatesByPath] = useState<{
+    A: AgentState[];
+    B: AgentState[];
+  }>(() => ({ A: [...dormantRow], B: [...dormantRow] }));
+
+  const insightsByPath = useMemo(() => {
+    const short = (s: string) => s.trim().split(/\s+/).slice(0, 4).join(" ");
+    return {
+      A: MOCK_BAKERY_MAP_FIXTURE.paths.A.agents.map((a) => short(a.insight)),
+      B: MOCK_BAKERY_MAP_FIXTURE.paths.B.agents.map((a) => short(a.insight)),
+    };
+  }, []);
+
   const mockComparison = useMemo(
     () => buildThinSliceMockComparison(pathLabels[0], pathLabels[1]),
     [pathLabels],
   );
 
+  const hudPathLabels = useMemo(
+    () => ({ A: pathLabels[0], B: pathLabels[1] }),
+    [pathLabels],
+  );
+
+  /** Staggered dual-path agent animation; transitions to dashboard after RUN_MOCK_MS. */
   useEffect(() => {
     if (uiStage !== "running" || runStatus !== "inProgress") return;
-    const id = window.setTimeout(() => {
-      setUiStage("dashboard");
-      setRunStatus("completed");
-    }, RUN_MOCK_MS);
-    return () => window.clearTimeout(id);
-  }, [uiStage, runStatus]);
+
+    setAgentStatesByPath({ A: [...dormantRow], B: [...dormantRow] });
+
+    const ids: number[] = [];
+
+    const setSlot = (path: "A" | "B", index: number, state: AgentState) => {
+      setAgentStatesByPath((prev) => {
+        const nextA = [...prev.A];
+        const nextB = [...prev.B];
+        if (path === "A") nextA[index] = state;
+        else nextB[index] = state;
+        return { A: nextA, B: nextB };
+      });
+    };
+
+    for (let i = 0; i < 4; i++) {
+      const baseA = 120 + i * 400;
+      ids.push(window.setTimeout(() => setSlot("A", i, "thinking"), baseA));
+      ids.push(window.setTimeout(() => setSlot("A", i, "insight"), baseA + 300));
+      ids.push(window.setTimeout(() => setSlot("A", i, "complete"), baseA + 620));
+    }
+
+    for (let i = 0; i < 4; i++) {
+      const baseB = 380 + i * 520;
+      ids.push(window.setTimeout(() => setSlot("B", i, "thinking"), baseB));
+      ids.push(window.setTimeout(() => setSlot("B", i, "insight"), baseB + 360));
+      ids.push(window.setTimeout(() => setSlot("B", i, "complete"), baseB + 720));
+    }
+
+    ids.push(
+      window.setTimeout(() => {
+        if (!isMountedRef.current) return;
+        setUiStage("dashboard");
+        setRunStatus("completed");
+      }, RUN_MOCK_MS),
+    );
+
+    return () => ids.forEach((id) => window.clearTimeout(id));
+  }, [uiStage, runStatus, dormantRow, setUiStage, setRunStatus]);
 
   const onSubmit = useCallback(
     (e: FormEvent) => {
@@ -299,8 +365,13 @@ export function ThinSliceDemo() {
                         transition={{ ...springTransition, delay: 0.05 }}
                         className={runCardClassCenter}
                       >
-                        <h2 className="font-heading text-h3 text-text">Intelligence</h2>
-                        <p className="mt-auto text-body text-text-dim">Simulating…</p>
+                        <AgentHUD
+                          viz_type={MOCK_BAKERY_MAP_FIXTURE.viz_type}
+                          roles={[...AGENT_ROLES[MOCK_BAKERY_MAP_FIXTURE.viz_type]]}
+                          pathLabels={hudPathLabels}
+                          agentStatesByPath={agentStatesByPath}
+                          insightsByPath={insightsByPath}
+                        />
                       </motion.article>
                     }
                     right={

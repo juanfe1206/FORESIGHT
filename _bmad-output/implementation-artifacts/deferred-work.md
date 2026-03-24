@@ -30,3 +30,12 @@
 - AC3 compliance (no "waiting for Epic 6" wording in `epics.md`) not verified within this diff; planning artifact outside the changeset.
 - Module-level fixture null-safety not guarded at runtime; TypeScript `satisfies SimulationResponse` provides compile-time coverage — no runtime issue expected.
 - Dual public names `MOCK_BAKERY_MAP_FIXTURE` / `MOCK_SIMULATION_RESPONSE` could cause import drift over time. Alias is intentional per spec; consider consolidating in a future cleanup pass.
+
+## Deferred from: code review of 5-1-agent-hud-agent-nodes (2026-03-25)
+
+- `viz_type` accepted by `AgentHudSlotProps` but intentionally discarded inside `AgentHUD` (`void _vizType`). Epic 5 network/fallback views may differentiate layout by viz type; address when those stories are implemented.
+- `pathsAllComplete` hard-codes `length === 4` guard. Will silently never trigger KPI preview if array length drifts; enforce contract at the call site or add a runtime assertion when path counts generalise.
+- No CSS glow/shadow on the thinking-state animation (UX-DR24 specifies pulse/glow). Pulse (opacity+scale) is implemented; glow is a visual polish item for a future a11y/UX refinement pass.
+- `aria-live="polite"` + `aria-atomic="false"` with long concatenated announcement string may be verbose for AT users. Acceptable at MVP; consider per-change atomic snippets in a dedicated a11y pass.
+- 24 `setTimeout` + functional `setAgentStatesByPath` updates fire during the mock run. Performance acceptable at this component density; profile and batch if jank is observed on low-end hardware.
+- `AgentNode` default switch branches return raw state string / null icon for unknown `AgentState` values. TypeScript union prevents this in practice; add exhaustiveness assertion (`assertNever`) if the union expands.
