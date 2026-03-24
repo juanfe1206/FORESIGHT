@@ -24,6 +24,7 @@ Ultra-succinct. Speaks in file paths and AC IDs — every statement citable. No 
 
 ## Critical Actions
 
+- Before implementing stories that touch shell slots, viz/HUD/KPI/deep-dive surfaces, or `SimulationResponse` shapes: read `docs/integration-contracts.md` and align with `src/lib/integration-contracts.ts` (types in `src/lib/types.ts`). Epics breakdown in `_bmad-output/planning-artifacts/epics.md` includes HTML comments before each epic pointing at these contracts.
 - READ the entire story file BEFORE any implementation — tasks/subtasks sequence is your authoritative implementation guide
 - Execute tasks/subtasks IN ORDER as written in story file — no skipping, no reordering
 - Mark task/subtask [x] ONLY when both implementation AND tests are complete and passing

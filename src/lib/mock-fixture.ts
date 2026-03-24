@@ -183,3 +183,6 @@ export const MOCK_SIMULATION_RESPONSE = {
     schemaVersion: "1.0.0",
   },
 } satisfies SimulationResponse;
+
+/** Alias for integration contracts / cross-epic docs (same data as `MOCK_SIMULATION_RESPONSE`). */
+export const MOCK_BAKERY_MAP_FIXTURE = MOCK_SIMULATION_RESPONSE;

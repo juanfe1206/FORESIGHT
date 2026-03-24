@@ -186,6 +186,7 @@ A story is complete only if all are true:
 - Error/degraded behavior for that story scope is explicitly handled.
 - FR/NFR/UX-DR trace tags are present in the story.
 
+<!-- Cross-epic integration contracts (read/maintain when scoping this epic): docs/integration-contracts.md | src/lib/integration-contracts.ts | src/lib/types.ts (SimulationResponse). Epic 1 owns the contract layer foundation. -->
 ### Epic 1: First Value Slice (Input -> Mock Compare) *(All Devs / 1 Dev fast — BLOCKING)*
 Deliver a user-visible vertical slice end-to-end: user enters decision + context, starts simulation, sees running-state orientation, and lands on a mock comparison dashboard using a validated fixture. Include only the minimum scaffolding needed for this slice and for parallel team unblocking.
 **FRs covered:** FR1, FR2, FR3, FR13, FR18 (mock-data slice)
@@ -193,6 +194,7 @@ Deliver a user-visible vertical slice end-to-end: user enters decision + context
 **UX-DRs addressed:** UX-DR1, UX-DR2, UX-DR3, UX-DR14, UX-DR16, UX-DR17, UX-DR19
 **Architecture:** ADR-01 (Next.js 14 App Router scaffold on Vercel), state management, lib/types.ts
 
+<!-- Cross-epic integration contracts: docs/integration-contracts.md - C6 API / SimulationResponse (producer). Implement against src/lib/types.ts; mock: src/lib/mock-fixture.ts (MOCK_BAKERY_MAP_FIXTURE / MOCK_SIMULATION_RESPONSE). -->
 ### Epic 2: Simulation Engine & API *(Dev 2 — PARALLEL)*
 System can receive a decision, parse it into Path A / Path B, classify the visualization type, run 4 isolated agents per path in parallel, synthesize per-path results, and return a complete structured payload via a stable API contract. Integrators can access the same endpoint.
 **FRs covered:** FR4, FR5, FR6, FR7, FR8, FR9, FR31
@@ -200,6 +202,7 @@ System can receive a decision, parse it into Path A / Path B, classify the visua
 **Architecture:** ADR-02, ADR-03, ADR-04; env config, input/output validation, rate limits, cost guardrails, telemetry
 **File ownership:** `app/api/`, `lib/agents.ts`, `lib/classifier.ts`
 
+<!-- Cross-epic integration contracts: docs/integration-contracts.md - C1 VizSlotProps (FlowView path); mount inside PanelSlots; shell state via useUiShell() from src/lib/ui-shell-context.tsx. -->
 ### Epic 3: Input, Simulation Shell & Flow Visualization *(Dev 1 — PARALLEL)*
 User can enter a business decision with context, launch the simulation, and see the three-panel split-screen layout with flow-oriented visualization. Owns the page state machine and routing between screen states.
 **FRs covered:** FR1, FR2, FR3, FR13, FR15
@@ -207,6 +210,7 @@ User can enter a business decision with context, launch the simulation, and see 
 **UX-DRs addressed:** UX-DR4, UX-DR6, UX-DR15 (Input→Simulation transition), UX-DR18, UX-DR21, UX-DR22, UX-DR24 (particles)
 **File ownership:** `app/page.tsx`, `components/input/`, `components/simulation/`, `components/viz/FlowView/`, `components/shared/GlowButton.tsx`
 
+<!-- Cross-epic integration contracts: docs/integration-contracts.md - C1 VizSlotProps (MapView), C5 DeepDivePanelSlotProps; deepDive stage slot map in doc. -->
 ### Epic 4: Map Visualization & Deep Dive *(Dev 3 — PARALLEL)*
 User can view geography-oriented consequence depictions when the decision is location-weighted, see which visualization mode applies, and explore detailed month-by-month narratives with agent attribution after reviewing the dashboard.
 **FRs covered:** FR12, FR14, FR26, FR27
@@ -214,6 +218,7 @@ User can view geography-oriented consequence depictions when the decision is loc
 **UX-DRs addressed:** UX-DR5, UX-DR12, UX-DR15 (Dashboard→Deep Dive transition), UX-DR24 (map animations)
 **File ownership:** `components/viz/MapView/`, `components/narrative/`, `components/shared/ModeBadge.tsx`
 
+<!-- Cross-epic integration contracts: docs/integration-contracts.md - C1 Network/FallbackViz, C2 AgentHUD, C3 KPI stack, C4 ScoreRing; running + dashboard slot map in doc. -->
 ### Epic 5: Agent HUD, Dashboard & Network Visualization *(Dev 4 — PARALLEL)*
 User can see agent progress during simulation, view a KPI comparison dashboard with winner cues and score rings after completion, and see relationship-oriented visualizations or a simplified fallback when needed.
 **FRs covered:** FR10, FR11, FR16, FR17, FR18, FR19, FR20, FR21, FR22, FR23, FR24, FR25
@@ -221,6 +226,7 @@ User can see agent progress during simulation, view a KPI comparison dashboard w
 **UX-DRs addressed:** UX-DR7, UX-DR8, UX-DR9, UX-DR10, UX-DR11, UX-DR13, UX-DR15 (Simulation→Dashboard transition), UX-DR20, UX-DR22, UX-DR24 (agent/node animations)
 **File ownership:** `components/agents/`, `components/dashboard/`, `components/viz/NetworkView/`, `components/viz/FallbackViz.tsx`, `components/shared/CountUpNumber.tsx`
 
+<!-- Cross-epic integration contracts: docs/integration-contracts.md - convergence: wire real API to UI; preserve shapes in src/lib/types.ts and src/lib/integration-contracts.ts; see No-Epic-6 guarantee in doc. -->
 ### Epic 6: Integration, Resilience & Demo Readiness *(All Devs — CONVERGENCE)*
 All developer streams converge: wire real API to UI, add confidence/transparency signals, implement cache/fallback recovery, and prepare 3 demo-ready scenarios with a rehearsed presentation script.
 **FRs covered:** FR28, FR29, FR30
@@ -230,6 +236,7 @@ All developer streams converge: wire real API to UI, add confidence/transparency
 
 ---
 
+<!-- Cross-epic integration contracts (read/maintain when scoping this epic): docs/integration-contracts.md | src/lib/integration-contracts.ts | src/lib/types.ts (SimulationResponse). Epic 1 owns the contract layer foundation. -->
 ## Epic 1: First Value Slice (Input -> Mock Compare)
 
 Deliver a user-visible end-to-end MVP slice with mock data so the team validates journey shape early and then parallelizes safely against stable contracts.
@@ -316,6 +323,7 @@ So that Epics 2-5 can execute in parallel without forward dependency blocking.
 
 ---
 
+<!-- Cross-epic integration contracts: docs/integration-contracts.md - C6 API / SimulationResponse (producer). Implement against src/lib/types.ts; mock: src/lib/mock-fixture.ts (MOCK_BAKERY_MAP_FIXTURE / MOCK_SIMULATION_RESPONSE). -->
 ## Epic 2: Simulation Engine & API
 
 System receives a decision, parses Path A/B, classifies visualization type, runs four isolated agents per path in parallel, synthesizes per path, and returns a stable JSON contract for UI and integrators.
@@ -384,6 +392,7 @@ So that the dashboard and deep dive have one canonical payload.
 
 ---
 
+<!-- Cross-epic integration contracts: docs/integration-contracts.md - C1 VizSlotProps (FlowView path); mount inside PanelSlots; shell state via useUiShell() from src/lib/ui-shell-context.tsx. -->
 ## Epic 3: Input, Simulation Shell & Flow Visualization
 
 User enters decision and context, launches simulation, and sees the three-panel experience with flow-mode visualization when applicable.
@@ -453,6 +462,7 @@ So that the tradeoff matches how I think about money and time.
 
 ---
 
+<!-- Cross-epic integration contracts: docs/integration-contracts.md - C1 VizSlotProps (MapView), C5 DeepDivePanelSlotProps; deepDive stage slot map in doc. -->
 ## Epic 4: Map Visualization & Deep Dive
 
 Geography-weighted decisions show Map mode; users can open narrative deep dive with attribution.
@@ -504,6 +514,7 @@ So that I understand why each path diverges.
 
 ---
 
+<!-- Cross-epic integration contracts: docs/integration-contracts.md - C1 Network/FallbackViz, C2 AgentHUD, C3 KPI stack, C4 ScoreRing; running + dashboard slot map in doc. -->
 ## Epic 5: Agent HUD, Dashboard & Network Visualization
 
 Progress during run; KPI comparison and score rings after; network mode or fallback when needed.
@@ -569,6 +580,7 @@ So that the demo never dead-ends.
 
 ---
 
+<!-- Cross-epic integration contracts: docs/integration-contracts.md - convergence: wire real API to UI; preserve shapes in src/lib/types.ts and src/lib/integration-contracts.ts; see No-Epic-6 guarantee in doc. -->
 ## Epic 6: Integration, Resilience & Demo Readiness
 
 Wire streams together, add transparency, cache/replay, and lock demo scenarios.

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Background -->
+  <rect width="32" height="32" rx="6" fill="#0F1923"/>
+  <!-- Stem: enters from left -->
+  <line x1="4" y1="20" x2="14" y2="20" stroke="#4A6070" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Chosen path: bold teal, breaks up-right -->
+  <line x1="14" y1="20" x2="26" y2="10" stroke="#00D4AA" stroke-width="3" stroke-linecap="round"/>
+  <!-- Dot at end of chosen path -->
+  <circle cx="26" cy="10" r="3.5" fill="#00D4AA"/>
+  <!-- Ghost path: continues straight, muted -->
+  <line x1="14" y1="20" x2="26" y2="20" stroke="#2A3A4A" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
