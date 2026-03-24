@@ -1,0 +1,13 @@
+import { describe, expect, it } from "vitest";
+import { AGENT_ROLES } from "./types";
+import type { VizType } from "./types";
+
+describe("AGENT_ROLES", () => {
+  const VIZ_TYPES: VizType[] = ["map", "flow", "network", "fallback"];
+  it("has a 4-tuple for every VizType", () => {
+    for (const vt of VIZ_TYPES) {
+      expect(AGENT_ROLES[vt]).toHaveLength(4);
+      expect(AGENT_ROLES[vt].every((r) => typeof r === "string" && r.length > 0)).toBe(true);
+    }
+  });
+});

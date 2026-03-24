@@ -1,26 +1,93 @@
 @import "tailwindcss";
 
+/* FORESIGHT thin-slice palette (UX-DR1) — dark-first */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0f1923;
+  --surface: #1b2838;
+  --border: #2a3a4a;
+  --accent: #00d4aa;
+  --blue: #2196f3;
+  --red: #ff4757;
+  --gold: #ffd700;
+  --text: #f0f4f8;
+  --text-dim: #8892a0;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Colors → bg-bg, text-text, border-border, etc. */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-blue: var(--blue);
+  --color-red: var(--red);
+  --color-gold: var(--gold);
+  --color-text: var(--text);
+  --color-text-dim: var(--text-dim);
+
+  /* Typography scale (H1–caption + KPI mono) */
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-space-grotesk), var(--font-dm-sans), ui-sans-serif,
+    system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --text-h1: 2.25rem;
+  --text-h1--line-height: 1.2;
+  --text-h2: 1.75rem;
+  --text-h2--line-height: 1.25;
+  --text-h3: 1.25rem;
+  --text-h3--line-height: 1.3;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5;
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.4;
+  --text-kpi: 1.5rem;
+  --text-kpi--line-height: 1.2;
+
+  /* 8px rhythm: 4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 48 */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-10: 2.5rem;
+  --spacing-12: 3rem;
+
+  /* Explicit breakpoints (sm 640 — 2xl 1536) */
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+  --breakpoint-2xl: 96rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Keyboard focus — visible ring on dark surfaces (AC 10) */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button:focus-visible {
+  outline-offset: 3px;
+}
+
+/* Reduce non-essential CSS animation/transition for accessibility (AC 9) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
 }
