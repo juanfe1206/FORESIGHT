@@ -28,4 +28,26 @@ describe("MOCK_SIMULATION_RESPONSE", () => {
   it("has a valid overallWinner", () => {
     expect(["A", "B"]).toContain(MOCK_SIMULATION_RESPONSE.comparison.overallWinner);
   });
+
+  it("keeps required string and timeline fields non-empty", () => {
+    expect(MOCK_SIMULATION_RESPONSE.runId.trim().length).toBeGreaterThan(0);
+    expect(MOCK_SIMULATION_RESPONSE.path_labels.A.trim().length).toBeGreaterThan(0);
+    expect(MOCK_SIMULATION_RESPONSE.path_labels.B.trim().length).toBeGreaterThan(0);
+    expect(MOCK_SIMULATION_RESPONSE.meta.generatedAt.trim().length).toBeGreaterThan(0);
+
+    for (const path of [MOCK_SIMULATION_RESPONSE.paths.A, MOCK_SIMULATION_RESPONSE.paths.B]) {
+      expect(path.synthesis.summary.trim().length).toBeGreaterThan(0);
+      expect(path.kpis.opportunityCost.trim().length).toBeGreaterThan(0);
+
+      for (const agent of path.agents) {
+        expect(agent.role.trim().length).toBeGreaterThan(0);
+        expect(agent.insight.trim().length).toBeGreaterThan(0);
+      }
+
+      for (const entry of path.synthesis.timeline) {
+        expect(entry.narrative.trim().length).toBeGreaterThan(0);
+        expect(entry.drivers.length).toBeGreaterThan(0);
+      }
+    }
+  });
 });

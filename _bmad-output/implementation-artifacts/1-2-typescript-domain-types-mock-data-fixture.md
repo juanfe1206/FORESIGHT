@@ -1,6 +1,6 @@
 # Story 1.2: TypeScript Domain Types & Mock Data Fixture
 
-Status: review
+Status: done
 
 ## Story
 
@@ -46,6 +46,16 @@ _trace: FR4, FR5, FR6, FR7, FR8, FR9, FR18 (types); NFR-S1 (server types); ADR-0
 - [x] **Create `src/lib/types.test.ts`** — compile-level + runtime checks for AGENT_ROLES shape
 - [x] **Create `src/lib/mock-fixture.test.ts`** — verify fixture required fields, agent count, KPI completeness
 - [x] **Run `npm run build` + `npm run lint`** clean; confirm no TypeScript errors
+
+### Review Findings
+
+- [x] [Review][Patch] Story scope and ownership conflict in current diff [`src/lib/*`] — resolved by user decision to keep strict Story 1.2 scope and exclude out-of-scope UI/tooling changes from this story patch set
+- [x] [Review][Patch] Fixture tests do not enforce non-empty required fields [`src/lib/mock-fixture.test.ts`]
+- [x] [Review][Patch] “No API calls” behavior is not actually asserted in integration test [`src/components/shell/ThinSliceDemo.test.tsx`] — resolved via scope isolation (Story 1.2 does not modify `src/components/shell/*`)
+- [x] [Review][Patch] Form submit accepts whitespace-only decisions and advances state [`src/components/shell/ThinSliceDemo.tsx`] — resolved via scope isolation (Story 1.2 does not modify `src/components/shell/*`)
+- [x] [Review][Patch] Integration test is brittle due to hard-coded KPI literal and long timing wait [`src/components/shell/ThinSliceDemo.test.tsx`] — resolved via scope isolation (Story 1.2 does not modify `src/components/shell/*`)
+- [x] [Review][Defer] Story status metadata inconsistency across tracking docs [`_bmad-output/implementation-artifacts/1-1-thin-slice-scaffold-user-visible-first-run.md`] — deferred, pre-existing
+- [x] [Review][Defer] Sprint status timestamp fields are out of sync [`_bmad-output/implementation-artifacts/sprint-status.yaml`] — deferred, pre-existing
 
 ---
 
@@ -424,5 +434,5 @@ None.
 
 **Story completion status**
 
-- Status: **review**
-- Note: Ready for code review; all tasks and verification checklist items complete.
+- Status: **done**
+- Note: Code review complete. Patch findings resolved; deferred items recorded in `deferred-work.md`.
