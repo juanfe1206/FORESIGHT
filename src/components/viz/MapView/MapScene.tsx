@@ -84,7 +84,7 @@ export type MapSceneProps = {
 export function MapScene({ pathData, pathLabel, pathTone = "B", center, confirmedCompetitors }: MapSceneProps) {
   const CENTER = useMemo(
     () => center ?? (pathTone === "A" ? CENTER_A : CENTER_B),
-    [center?.lat, center?.lng, pathTone],
+    [center, pathTone],
   );
   const reduceMotion = useReducedMotion() ?? false;
   const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ?? "";
