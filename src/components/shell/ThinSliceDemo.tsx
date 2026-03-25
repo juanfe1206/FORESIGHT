@@ -115,7 +115,10 @@ function VizOrientationBand({ vizType }: { vizType: VizType }) {
 }
 
 export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
-  const isDevPreviewEnabled = process.env.NODE_ENV !== "production";
+  // Demo-scenario controls are dev-only by default, but you can opt-in in production builds
+  // by setting NEXT_PUBLIC_FORCE_DEV_PREVIEW="true" in the hosting environment (Vercel).
+  const isDevPreviewEnabled =
+    process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_FORCE_DEV_PREVIEW === "true";
   const reducedMotionResolved = useReducedMotionConfig();
   const reduceMotion = reducedMotionResolved === true;
   const readStoryDelay = reduceMotion ? 0 : READ_FULL_STORY_DELAY_S;
