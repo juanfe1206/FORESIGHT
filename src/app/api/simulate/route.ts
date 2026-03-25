@@ -13,7 +13,7 @@ import {
   synthesizePath,
 } from "@/lib/synthesis";
 import { overallWinner, winnerByKpi } from "@/lib/scoring";
-import type { ErrorResponse, SimulationResponse } from "@/lib/types";
+import type { AgentState, ErrorResponse, SimulationResponse } from "@/lib/types";
 import { MOCK_SIMULATION_RESPONSE } from "@/lib/mock-fixture";
 import type { NextRequest } from "next/server";
 import { checkRateLimit } from "./rate-limit";
@@ -176,6 +176,13 @@ export async function POST(request: NextRequest): Promise<Response> {
         status: "completed",
         viz_type,
         path_labels,
+        progress: {
+          agents_per_path: 4,
+          agent_states: {
+            A: agentRun.agentsByPath.A.map((): AgentState => "complete"),
+            B: agentRun.agentsByPath.B.map((): AgentState => "complete"),
+          },
+        },
         paths: {
           A: {
             ...MOCK_SIMULATION_RESPONSE.paths.A,

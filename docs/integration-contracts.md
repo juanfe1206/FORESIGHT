@@ -17,6 +17,7 @@ Living reference for parallel work on Epics 2–5. Source-of-truth types live in
 
 - **Source of truth:** `src/lib/types.ts` (`SimulationResponse` and related types).
 - **Mock fallback:** `MOCK_BAKERY_MAP_FIXTURE` (alias for the same object as `MOCK_SIMULATION_RESPONSE`) in `src/lib/mock-fixture.ts` — full bakery map scenario with both paths, KPIs, and comparison.
+- **Progress update strategy (Story 6.1):** Client uses predictive synthetic timing for `AgentHUD` animation during live runs. `POST /api/simulate` is fire-and-wait (no SSE or polling), and `SimulationResponse.progress.agent_states` reflects final completion state after the run.
 
 ## No-Epic-6 guarantee
 

@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThinSliceDemo } from "./ThinSliceDemo";
+import { RUN_MOCK_MS } from "@/lib/ui-state";
 
 const mockFetch = vi.fn();
 
@@ -327,4 +328,38 @@ describe("ThinSliceDemo", () => {
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard");
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "error");
   });
+
+  it("keeps running stage during live API wait while HUD animation reaches complete", async () => {
+    mockFetch.mockImplementation(() => delayedFetch(makeSuccessResponse(), 6000));
+    render(<ThinSliceDemo />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: /decision/i }), {
+      target: { value: "Expand west vs deepen existing" },
+    });
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: /simulate my decision/i }));
+    });
+
+    await waitFor(() => expect(screen.getByTestId("simulation-shell")).toBeInTheDocument());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, RUN_MOCK_MS + 150));
+    });
+
+    const root = screen.getByTestId("thin-slice-root");
+    expect(root).toHaveAttribute("data-ui-stage", "running");
+    expect(root).toHaveAttribute("data-run-status", "inProgress");
+    expect(screen.getByTestId("agent-node-A-0")).toHaveAttribute(
+      "aria-label",
+      expect.stringContaining("Complete"),
+    );
+    expect(screen.getByTestId("agent-node-B-3")).toHaveAttribute(
+      "aria-label",
+      expect.stringContaining("Complete"),
+    );
+
+    await waitFor(
+      () => expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard"),
+      { timeout: 7000 },
+    );
+  }, 15000);
 });

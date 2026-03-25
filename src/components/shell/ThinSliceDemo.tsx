@@ -159,7 +159,8 @@ export function ThinSliceDemo() {
 
   useEffect(() => {
     if (uiStage !== "running" || runStatus !== "inProgress") return;
-    if (isApiCallRef.current) return;
+    // Progress updates are predictive client-side timing; live API calls are fire-and-wait.
+    // Keep HUD animation active during real runs and suppress only mock dashboard auto-transition.
 
     setAgentStatesByPath({ A: [...dormantRow], B: [...dormantRow] });
 
@@ -189,14 +190,16 @@ export function ThinSliceDemo() {
       ids.push(window.setTimeout(() => setSlot("B", i, "complete"), baseB + 720));
     }
 
-    ids.push(
-      window.setTimeout(() => {
-        if (!isMountedRef.current) return;
-        setPathLabels(derivePathLabels(form.decision));
-        setUiStage("dashboard");
-        setRunStatus("completed");
-      }, RUN_MOCK_MS),
-    );
+    if (!isApiCallRef.current) {
+      ids.push(
+        window.setTimeout(() => {
+          if (!isMountedRef.current) return;
+          setPathLabels(derivePathLabels(form.decision));
+          setUiStage("dashboard");
+          setRunStatus("completed");
+        }, RUN_MOCK_MS),
+      );
+    }
 
     return () => ids.forEach((id) => window.clearTimeout(id));
   }, [uiStage, runStatus, form.decision, dormantRow]);
