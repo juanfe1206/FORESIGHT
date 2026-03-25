@@ -88,6 +88,22 @@ describe("ThinSliceDemo", () => {
     expect(screen.getByTestId("slot-right-panel")).toBeInTheDocument();
   });
 
+  it("shows user-derived path labels in running panel headings for pipe-separated decisions", async () => {
+    const user = userEvent.setup();
+    render(<ThinSliceDemo />);
+    await act(async () => {
+      fireEvent.change(screen.getByRole("textbox", { name: /decision/i }), {
+        target: { value: "Bake more bread | Focus on catering" },
+      });
+    });
+    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+
+    await waitFor(() => expect(screen.getByTestId("simulation-shell")).toBeInTheDocument());
+    expect(screen.getByRole("heading", { name: /^Bake more bread$/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Focus on catering$/ })).toBeInTheDocument();
+    expect(screen.queryByText(/scenario\s*a/i)).not.toBeInTheDocument();
+  });
+
   it("renders dashboard stage with KPI slots", async () => {
     const user = userEvent.setup();
     render(<ThinSliceDemo />);

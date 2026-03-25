@@ -1,5 +1,5 @@
 # generated: 2026-03-24T21:34:57.5956932+01:00
-# last_updated: 2026-03-25T15:00:00.0000000+01:00
+# last_updated: 2026-03-25T18:15:00.0000000+01:00
 # project: FORESIGHT
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-24T21:34:57.5956932+01:00
-last_updated: 2026-03-25T15:00:00.0000000+01:00
+last_updated: 2026-03-25T18:15:00.0000000+01:00
 project: FORESIGHT
 project_key: NOKEY
 tracking_system: file-system
@@ -59,7 +59,7 @@ development_status:
   epic-3: in-progress
   3-1-decision-form-context-fields: done
   3-2-simulate-cta-submit-wiring: review
-  3-3-simulation-container-panel-headers-input-running-transition: backlog
+  3-3-simulation-container-panel-headers-input-running-transition: review
   3-4-flow-view-resource-allocation-visualization: backlog
   epic-3-retrospective: optional
 

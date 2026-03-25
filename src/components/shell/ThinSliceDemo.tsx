@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, MotionConfig, motion } from "framer-motion";
+import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DecisionForm,
@@ -16,10 +16,13 @@ import {
   type UiStage,
 } from "@/lib/ui-state";
 import { UiShellContext } from "@/lib/ui-shell-context";
-import type { SimulationRequest } from "@/lib/types";
+import type { SimulationRequest, VizType } from "@/lib/types";
+import { derivePathLabels } from "@/lib/derive-path-labels";
+import { MOCK_BAKERY_MAP_FIXTURE } from "@/lib/mock-fixture";
 import { buildThinSliceMockComparison } from "@/lib/thin-slice-mock";
 import { CenterPanelSlot, LeftPanelSlot, RightPanelSlot } from "./PanelSlots";
-import { SimulationShell } from "./SimulationShell";
+import { PanelHeader } from "./PanelHeader";
+import { SimulationContainer } from "./SimulationContainer";
 
 const springTransition = { type: "spring" as const, stiffness: 320, damping: 28 };
 
@@ -28,40 +31,15 @@ const panelMotion = {
   animate: { opacity: 1, y: 0 },
 };
 
-const runCardClassLeft =
-  "order-1 flex min-h-48 flex-col rounded-xl border border-border bg-surface p-4 lg:order-1";
-const runCardClassCenter =
-  "order-2 flex min-h-48 flex-col rounded-xl border border-border bg-surface p-4 lg:order-2";
-const runCardClassRight =
-  "order-3 flex min-h-48 flex-col rounded-xl border border-border bg-surface p-4 lg:order-3";
+const VIZ_TYPES = ["flow", "map", "network", "fallback"] as const;
 
-function derivePathLabels(decision: string): [string, string] {
-  const d = decision.trim();
-  if (!d) return ["Path A", "Path B"];
-
-  const vsMatch = /\s+vs\.?\s+/i.exec(d);
-  if (vsMatch) {
-    const parts = d.split(vsMatch[0]).map((s) => s.trim());
-    if (parts.length >= 2) {
-      const a = parts[0].slice(0, 48) || "Path A";
-      const b = parts[1].slice(0, 48) || "Path B";
-      return [a, b];
-    }
-  }
-
-  const pipe = d
-    .split("|")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (pipe.length >= 2) {
-    return [pipe[0].slice(0, 48), pipe[1].slice(0, 48)];
-  }
-
-  return ["Path A", "Path B"];
+function isVizType(v: string): v is VizType {
+  return (VIZ_TYPES as readonly string[]).includes(v);
 }
 
 export function ThinSliceDemo() {
   const isDevPreviewEnabled = process.env.NODE_ENV !== "production";
+  const reduceMotion = useReducedMotion();
 
   // P2: Guard queueMicrotask setter against component unmount
   const isMountedRef = useRef(true);
@@ -71,6 +49,15 @@ export function ThinSliceDemo() {
   const [runStatus, setRunStatus] = useState<UiRunStatus>(initialUiShellState.runStatus);
   const [form, setForm] = useState<DecisionFormInputState>(emptyDecisionFormState);
   const [pathLabels, setPathLabels] = useState<[string, string]>(["Path A", "Path B"]);
+  /** Mock until Epic 2 returns `viz_type` from the simulate API. */
+  const [vizType, setVizType] = useState<VizType>("flow");
+
+  const inputExitTransition = reduceMotion
+    ? { duration: 0.08 }
+    : { duration: 0.45, ease: [0.33, 1, 0.68, 1] as const };
+  const runningEnterTransition = reduceMotion
+    ? { duration: 0.08 }
+    : { duration: 0.68, ease: [0.22, 1, 0.36, 1] as const };
 
   const mockComparison = useMemo(
     () => buildThinSliceMockComparison(pathLabels[0], pathLabels[1]),
@@ -141,6 +128,11 @@ export function ThinSliceDemo() {
     [onDevRunStatusChange],
   );
 
+  const handleVizTypeChange = useCallback((ev: React.ChangeEvent<HTMLSelectElement>) => {
+    const v = ev.target.value;
+    if (isVizType(v)) setVizType(v);
+  }, []);
+
   return (
     // D1: Provide live uiStage / runStatus to the subtree (satisfies AC1)
     <UiShellContext.Provider value={{ uiStage, runStatus, setUiStage, setRunStatus }}>
@@ -202,6 +194,25 @@ export function ThinSliceDemo() {
                   <option value="error">error (shell)</option>
                 </select>
               </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor="dev-viz-type" className="font-medium text-text">
+                  viz_type
+                </label>
+                <select
+                  id="dev-viz-type"
+                  value={vizType}
+                  onChange={handleVizTypeChange}
+                  data-testid="dev-viz-type-preview"
+                  className="rounded border border-border bg-bg px-2 py-1 text-body text-text"
+                  title="Mock viz_type until Epic 2 API"
+                >
+                  {VIZ_TYPES.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <span className="hidden sm:inline">(non-production only)</span>
             </div>
           )}
@@ -248,8 +259,12 @@ export function ThinSliceDemo() {
                   aria-label="Decision input"
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={springTransition}
+                  exit={
+                    reduceMotion
+                      ? { opacity: 0 }
+                      : { opacity: 0, scale: 0.95, y: -12 }
+                  }
+                  transition={inputExitTransition}
                   className="mx-auto w-full max-w-xl"
                 >
                   <DecisionForm
@@ -266,45 +281,22 @@ export function ThinSliceDemo() {
                   key="running"
                   role="region"
                   aria-label="Simulation running"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+                  initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={springTransition}
+                  transition={runningEnterTransition}
                   className="flex flex-1 flex-col"
                 >
-                  <SimulationShell
-                    leftAriaLabel="Path A visualization slot"
-                    centerAriaLabel="Agent HUD and progress slot"
-                    rightAriaLabel="Path B visualization slot"
-                    left={
-                      <motion.article
-                        {...panelMotion}
-                        transition={springTransition}
-                        className={runCardClassLeft}
-                      >
-                        <h2 className="font-heading text-h3 text-accent">{pathLabels[0]}</h2>
-                        <p className="mt-2 text-caption text-text-dim">Path A — framing</p>
-                      </motion.article>
-                    }
+                  <SimulationContainer
+                    pathLabels={pathLabels}
+                    vizType={vizType}
+                    pathDataA={MOCK_BAKERY_MAP_FIXTURE.paths.A}
+                    pathDataB={MOCK_BAKERY_MAP_FIXTURE.paths.B}
                     center={
-                      <motion.article
-                        {...panelMotion}
-                        transition={{ ...springTransition, delay: 0.05 }}
-                        className={runCardClassCenter}
-                      >
-                        <h2 className="font-heading text-h3 text-text">Intelligence</h2>
+                      <>
+                        <PanelHeader title="Intelligence" accentClassName="text-text" />
                         <p className="mt-auto text-body text-text-dim">Simulating…</p>
-                      </motion.article>
-                    }
-                    right={
-                      <motion.article
-                        {...panelMotion}
-                        transition={{ ...springTransition, delay: 0.1 }}
-                        className={runCardClassRight}
-                      >
-                        <h2 className="font-heading text-h3 text-blue">{pathLabels[1]}</h2>
-                        <p className="mt-2 text-caption text-text-dim">Path B — framing</p>
-                      </motion.article>
+                      </>
                     }
                   />
                 </motion.section>
