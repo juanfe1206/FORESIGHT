@@ -1,0 +1,224 @@
+import OpenAI from "openai";
+import pLimit from "p-limit";
+import type { AgentOutput, GroundingLevel, SimulationRequest } from "@/lib/types";
+
+type PathKey = "A" | "B";
+type SlotIndex = 1 | 2 | 3 | 4;
+
+export interface AgentFailure {
+  path: PathKey;
+  slot: SlotIndex;
+  role: string;
+  reason: string;
+}
+
+export interface RunParallelAgentsInput {
+  pathLabels: { A: string; B: string };
+  roles: [string, string, string, string];
+  context: SimulationRequest["context"];
+  apiKey: string;
+  model: string;
+  timeoutMs: number;
+  concurrency: number;
+}
+
+export interface RunAgentsResult {
+  agentsByPath: { A: AgentOutput[]; B: AgentOutput[] };
+}
+
+export class AgentTimeoutError extends Error {
+  readonly kind = "AgentTimeoutError" as const;
+
+  constructor(message = "Agent execution timed out.") {
+    super(message);
+    this.name = "AgentTimeoutError";
+  }
+}
+
+export class AgentProviderError extends Error {
+  readonly kind = "AgentProviderError" as const;
+
+  constructor(message = "Agent provider returned an error.") {
+    super(message);
+    this.name = "AgentProviderError";
+  }
+}
+
+export class AgentParseError extends Error {
+  readonly kind = "AgentParseError" as const;
+
+  constructor(message = "Agent response could not be parsed.") {
+    super(message);
+    this.name = "AgentParseError";
+  }
+}
+
+export class AgentPartialFailureError extends Error {
+  readonly kind = "AgentPartialFailureError" as const;
+  readonly failures: AgentFailure[];
+
+  constructor(failures: AgentFailure[]) {
+    super("One or more agent slots failed.");
+    this.name = "AgentPartialFailureError";
+    this.failures = failures;
+  }
+}
+
+const VALID_GROUNDING = new Set<GroundingLevel>(["supplied", "mixed", "assumed"]);
+const AGENT_SYSTEM_PROMPT =
+  "You are a business simulation analysis agent. Return only JSON with keys: role, insight, confidence, grounding.";
+
+function buildUserPrompt(pathLabel: string, role: string, context: SimulationRequest["context"]): string {
+  const contextLines: string[] = [];
+  if (context.industry) contextLines.push(`Industry: ${context.industry}`);
+  if (context.location) contextLines.push(`Location: ${context.location}`);
+  if (context.customerBase) contextLines.push(`Customer base: ${context.customerBase}`);
+  if (typeof context.monthlyRevenue === "number") {
+    contextLines.push(`Monthly revenue: ${context.monthlyRevenue}`);
+  }
+  if (context.details) contextLines.push(`Details: ${context.details}`);
+
+  const contextBlock = contextLines.length ? `\nContext:\n${contextLines.join("\n")}` : "";
+
+  return `Path: ${pathLabel}
+Role: ${role}${contextBlock}
+
+Respond in JSON with:
+- role: string
+- insight: concise sentence grounded in available context
+- confidence: number from 0 to 1
+- grounding: "supplied" | "mixed" | "assumed"`;
+}
+
+function normalizeAgentOutput(raw: unknown, expectedRole: string): AgentOutput {
+  if (typeof raw !== "object" || raw === null) {
+    throw new AgentParseError("Agent output must be a JSON object.");
+  }
+
+  const output = raw as Record<string, unknown>;
+  if (typeof output.role !== "string" || output.role.trim().length === 0) {
+    throw new AgentParseError("Agent output is missing a valid role.");
+  }
+  if (typeof output.insight !== "string" || output.insight.trim().length === 0) {
+    throw new AgentParseError("Agent output is missing a valid insight.");
+  }
+
+  const numericConfidence =
+    typeof output.confidence === "number"
+      ? output.confidence
+      : Number.parseFloat(String(output.confidence ?? "0"));
+  const clampedConfidence = Number.isFinite(numericConfidence)
+    ? Math.min(1, Math.max(0, numericConfidence))
+    : 0;
+
+  const groundingCandidate = String(output.grounding ?? "assumed").toLowerCase();
+  const grounding: GroundingLevel = VALID_GROUNDING.has(groundingCandidate as GroundingLevel)
+    ? (groundingCandidate as GroundingLevel)
+    : "assumed";
+
+  return {
+    role: expectedRole,
+    insight: output.insight.trim(),
+    confidence: clampedConfidence,
+    grounding,
+  };
+}
+
+async function executeAgentSlot(
+  client: OpenAI,
+  input: RunParallelAgentsInput,
+  path: PathKey,
+  slot: SlotIndex,
+): Promise<AgentOutput> {
+  const role = input.roles[slot - 1];
+  const pathLabel = input.pathLabels[path];
+  let completion;
+
+  try {
+    completion = await client.chat.completions.create(
+      {
+        model: input.model,
+        messages: [
+          { role: "system", content: AGENT_SYSTEM_PROMPT },
+          { role: "user", content: buildUserPrompt(pathLabel, role, input.context) },
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 220,
+        temperature: 0.4,
+      },
+      { signal: AbortSignal.timeout(input.timeoutMs) },
+    );
+  } catch (error) {
+    if (error instanceof Error && error.name === "TimeoutError") {
+      throw new AgentTimeoutError(`Agent slot ${path}-${slot} timed out.`);
+    }
+    throw new AgentProviderError(error instanceof Error ? error.message : String(error));
+  }
+
+  const raw = completion.choices[0]?.message?.content ?? "";
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new AgentParseError(`Agent slot ${path}-${slot} returned invalid JSON.`);
+  }
+
+  return normalizeAgentOutput(parsed, role);
+}
+
+export async function runParallelAgents(input: RunParallelAgentsInput): Promise<RunAgentsResult> {
+  const client = new OpenAI({ apiKey: input.apiKey });
+  const limit = pLimit(Math.max(1, input.concurrency));
+
+  const tasks: Array<{
+    path: PathKey;
+    slot: SlotIndex;
+    role: string;
+    run: () => Promise<AgentOutput>;
+  }> = [];
+
+  const slotIndices: SlotIndex[] = [1, 2, 3, 4];
+  const paths: PathKey[] = ["A", "B"];
+
+  for (const path of paths) {
+    for (const slot of slotIndices) {
+      tasks.push({
+        path,
+        slot,
+        role: input.roles[slot - 1],
+        run: () => limit(() => executeAgentSlot(client, input, path, slot)),
+      });
+    }
+  }
+
+  const settled = await Promise.allSettled(tasks.map((task) => task.run()));
+  const agentsByPath: { A: AgentOutput[]; B: AgentOutput[] } = { A: [], B: [] };
+  const failures: AgentFailure[] = [];
+
+  for (let i = 0; i < settled.length; i += 1) {
+    const task = tasks[i];
+    const outcome = settled[i];
+    if (!task || !outcome) continue;
+
+    if (outcome.status === "fulfilled") {
+      agentsByPath[task.path].push(outcome.value);
+      continue;
+    }
+
+    const reason = outcome.reason;
+    failures.push({
+      path: task.path,
+      slot: task.slot,
+      role: task.role,
+      reason: reason instanceof Error ? reason.message : String(reason),
+    });
+  }
+
+  if (failures.length > 0) {
+    throw new AgentPartialFailureError(failures);
+  }
+
+  return {
+    agentsByPath,
+  };
+}

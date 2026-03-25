@@ -3,6 +3,10 @@
  * Single source of truth for uiStage / runStatus naming — do not introduce parallel keys.
  */
 
+import type { VizType } from "./types";
+
+export type { VizType } from "./types";
+
 export type UiStage = "input" | "running" | "dashboard" | "deepDive";
 
 export type UiRunStatus =
@@ -16,15 +20,30 @@ export type UiRunStatus =
 export type UiShellState = {
   uiStage: UiStage;
   runStatus: UiRunStatus;
+  /** Visualization mode from simulation result — aligned with `MOCK_BAKERY_MAP_FIXTURE.viz_type` default. */
+  vizType: VizType;
 };
+
+/** Default matches `src/lib/mock-fixture.ts` `MOCK_BAKERY_MAP_FIXTURE.viz_type`. */
+const DEFAULT_VIZ_TYPE: VizType = "map";
 
 export const initialUiShellState: UiShellState = {
   uiStage: "input",
   runStatus: "idle",
+  vizType: DEFAULT_VIZ_TYPE,
 };
 
-/** Mock simulation run duration in milliseconds. */
-export const RUN_MOCK_MS = 1800;
+const VIZ_TYPES: readonly VizType[] = ["map", "flow", "network", "fallback"];
+
+export function isVizType(v: string): v is VizType {
+  return (VIZ_TYPES as readonly string[]).includes(v);
+}
+
+/**
+ * Mock simulation run duration in milliseconds.
+ * Last agent completes at ~2660 ms; this adds ~840 ms of settled "complete" view before dashboard.
+ */
+export const RUN_MOCK_MS = 3500;
 
 const UI_STAGES: readonly UiStage[] = ["input", "running", "dashboard", "deepDive"];
 const UI_RUN_STATUSES: readonly UiRunStatus[] = [

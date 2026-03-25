@@ -1,4 +1,8 @@
 export type VizType = "map" | "flow" | "network" | "fallback";
+
+export function isVizType(v: string): v is VizType {
+  return v === "map" || v === "flow" || v === "network" || v === "fallback";
+}
 export type AgentState = "dormant" | "thinking" | "insight" | "complete" | "error";
 export type GroundingLevel = "supplied" | "mixed" | "assumed";
 export type RunStatus = "completed" | "fallback" | "error";
@@ -85,6 +89,7 @@ export interface ErrorResponse {
     code: string;
     message: string;
     recoverable: boolean;
+    details?: Record<string, unknown>;
   };
   recovery?: {
     canUseCache: boolean;
