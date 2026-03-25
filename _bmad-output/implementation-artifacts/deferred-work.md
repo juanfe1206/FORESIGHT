@@ -39,3 +39,9 @@
 - `aria-live="polite"` + `aria-atomic="false"` with long concatenated announcement string may be verbose for AT users. Acceptable at MVP; consider per-change atomic snippets in a dedicated a11y pass.
 - 24 `setTimeout` + functional `setAgentStatesByPath` updates fire during the mock run. Performance acceptable at this component density; profile and batch if jank is observed on low-end hardware.
 - `AgentNode` default switch branches return raw state string / null icon for unknown `AgentState` values. TypeScript union prevents this in practice; add exhaustiveness assertion (`assertNever`) if the union expands.
+
+## Deferred from: code review of 5-2-kpi-comparison-stack-supporting-primitives (2026-03-25)
+
+- `CountUpNumber` initial "0%" flash on first frame — inherent to count-from-zero design; not a defect. Revisit if product feedback indicates visible jank on slow hardware.
+- `CountUpNumber` no internal NaN guard — guarded at all callsites via `Number.isFinite`; internal defensive guard worth adding if the component is reused outside KPICard in future.
+- `line-clamp-5` silently truncates long narrative KPIs in `KPICard` — acceptable with current fixture data; revisit when real API `opportunityCost` strings arrive to assess actual line lengths.

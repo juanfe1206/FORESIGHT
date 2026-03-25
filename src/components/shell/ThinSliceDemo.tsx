@@ -12,7 +12,9 @@ import {
 } from "@/lib/ui-state";
 import { UiShellContext } from "@/lib/ui-shell-context";
 import { AgentHUD } from "@/components/agents/AgentHUD";
-import { buildThinSliceMockComparison } from "@/lib/thin-slice-mock";
+import { KpiStack } from "@/components/dashboard/KpiStack";
+import { MOCK_KPI_STACK_PROPS } from "@/lib/integration-contracts";
+import type { KpiStackSlotProps } from "@/lib/integration-contracts";
 import { AGENT_ROLES } from "@/lib/types";
 import type { AgentState } from "@/lib/types";
 import { MOCK_BAKERY_MAP_FIXTURE } from "@/lib/mock-fixture";
@@ -93,14 +95,17 @@ export function ThinSliceDemo() {
     };
   }, []);
 
-  const mockComparison = useMemo(
-    () => buildThinSliceMockComparison(pathLabels[0], pathLabels[1]),
-    [pathLabels],
-  );
-
   const hudPathLabels = useMemo(
     () => ({ A: pathLabels[0], B: pathLabels[1] }),
     [pathLabels],
+  );
+
+  const kpiStackProps = useMemo(
+    (): KpiStackSlotProps => ({
+      ...MOCK_KPI_STACK_PROPS,
+      pathLabels: hudPathLabels,
+    }),
+    [hudPathLabels],
   );
 
   /** Staggered dual-path agent animation; transitions to dashboard after RUN_MOCK_MS. */
@@ -404,11 +409,11 @@ export function ThinSliceDemo() {
                       className="order-1 lg:order-1"
                     >
                       <motion.div {...panelMotion} transition={springTransition} className="h-full">
-                        <KpiCard
-                          title={mockComparison.pathA.label}
-                          subtitle="Path A"
-                          kpis={mockComparison.pathA.kpis}
+                        <PathSummaryCard
+                          pathLabel={pathLabels[0]}
+                          pathId="A"
                           accentClass="text-accent"
+                          summary={MOCK_BAKERY_MAP_FIXTURE.paths.A.synthesis.summary}
                         />
                       </motion.div>
                     </LeftPanelSlot>
@@ -419,12 +424,9 @@ export function ThinSliceDemo() {
                       <motion.div
                         {...panelMotion}
                         transition={{ ...springTransition, delay: 0.05 }}
-                        className="rounded-xl border border-border bg-surface p-6 text-center"
+                        className="rounded-xl border border-border bg-surface p-4 sm:p-6"
                       >
-                        <p className="font-heading text-h3 text-text">Comparison</p>
-                        <p className="mt-2 text-caption text-text-dim">
-                          Mock outcome — no API calls in this slice
-                        </p>
+                        <KpiStack {...kpiStackProps} />
                       </motion.div>
                     </CenterPanelSlot>
                     <RightPanelSlot
@@ -436,11 +438,11 @@ export function ThinSliceDemo() {
                         transition={{ ...springTransition, delay: 0.1 }}
                         className="h-full"
                       >
-                        <KpiCard
-                          title={mockComparison.pathB.label}
-                          subtitle="Path B"
-                          kpis={mockComparison.pathB.kpis}
+                        <PathSummaryCard
+                          pathLabel={pathLabels[1]}
+                          pathId="B"
                           accentClass="text-blue"
+                          summary={MOCK_BAKERY_MAP_FIXTURE.paths.B.synthesis.summary}
                         />
                       </motion.div>
                     </RightPanelSlot>
@@ -505,39 +507,22 @@ export function ThinSliceDemo() {
   );
 }
 
-function KpiCard({
-  title,
-  subtitle,
-  kpis,
+function PathSummaryCard({
+  pathLabel,
+  pathId,
   accentClass,
+  summary,
 }: {
-  title: string;
-  subtitle: string;
-  kpis: { revenue: string; risk: string; timeToValue: string; confidence: string };
+  pathLabel: string;
+  pathId: "A" | "B";
   accentClass: string;
+  summary: string;
 }) {
   return (
     <div className="flex h-full flex-col rounded-xl border border-border bg-surface p-4">
-      <h3 className={`font-heading text-h3 ${accentClass}`}>{title}</h3>
-      <p className="text-caption text-text-dim">{subtitle}</p>
-      <dl className="mt-4 grid grid-cols-1 gap-3 text-caption">
-        <div className="flex justify-between gap-2 border-t border-border pt-3">
-          <dt className="text-text-dim">Revenue (mock)</dt>
-          <dd className="font-mono text-kpi text-text">{kpis.revenue}</dd>
-        </div>
-        <div className="flex justify-between gap-2 border-t border-border pt-3">
-          <dt className="text-text-dim">Risk</dt>
-          <dd className="font-mono text-kpi text-text">{kpis.risk}</dd>
-        </div>
-        <div className="flex justify-between gap-2 border-t border-border pt-3">
-          <dt className="text-text-dim">Time to value</dt>
-          <dd className="font-mono text-kpi text-text">{kpis.timeToValue}</dd>
-        </div>
-        <div className="flex justify-between gap-2 border-t border-border pt-3">
-          <dt className="text-text-dim">Confidence</dt>
-          <dd className="font-mono text-kpi text-gold">{kpis.confidence}</dd>
-        </div>
-      </dl>
+      <h3 className={`font-heading text-h3 ${accentClass}`}>{pathLabel}</h3>
+      <p className="text-caption text-text-dim">Path {pathId}</p>
+      <p className="mt-4 text-body leading-snug text-text">{summary}</p>
     </div>
   );
 }

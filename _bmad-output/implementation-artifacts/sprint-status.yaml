@@ -1,5 +1,5 @@
 # generated: 2026-03-24T21:34:57.5956932+01:00
-# last_updated: 2026-03-25T00:15:00.0000000+01:00
+# last_updated: 2026-03-25T00:50:00.0000000+01:00
 # project: FORESIGHT
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-24T21:34:57.5956932+01:00
-last_updated: 2026-03-24T23:45:00.0000000+01:00
+last_updated: 2026-03-25T00:50:00.0000000+01:00
 project: FORESIGHT
 project_key: NOKEY
 tracking_system: file-system
@@ -71,7 +71,7 @@ development_status:
 
   epic-5: in-progress
   5-1-agent-hud-agent-nodes: done
-  5-2-kpi-comparison-stack-supporting-primitives: backlog
+  5-2-kpi-comparison-stack-supporting-primitives: done
   5-3-score-rings-simulation-dashboard-transition: backlog
   5-4-network-view-fallback-visualization: backlog
   epic-5-retrospective: optional
