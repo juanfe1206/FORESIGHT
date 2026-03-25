@@ -56,7 +56,7 @@ development_status:
   2-4-per-path-synthesis-kpi-assembly-telemetry: backlog
   epic-2-retrospective: optional
 
-  epic-3: in-progress
+  epic-3: done
   3-1-decision-form-context-fields: done
   3-2-simulate-cta-submit-wiring: done
   3-3-simulation-container-panel-headers-input-running-transition: done
