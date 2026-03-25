@@ -25,12 +25,9 @@ function MapPlaceholder({ pathLabel }: VizSlotProps) {
     >
       <p className="font-heading text-caption font-medium text-text-dim">Map view</p>
       <p className="text-caption text-text-dim">
-        Full visualization ships in Epic 4. This path:{" "}
+        Map rendered via MapHalf in the shell. This path:{" "}
         <span className="text-text">{pathLabel}</span>
       </p>
-      <span className="text-2xl opacity-40" aria-hidden>
-        🗺️
-      </span>
     </div>
   );
 }
