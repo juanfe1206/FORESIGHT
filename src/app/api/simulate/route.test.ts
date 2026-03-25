@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AGENT_ROLES } from "@/lib/types";
+import { DEMO_SCENARIOS } from "@/lib/demo-scenarios";
 
 const {
   mockClassifyDecision,
@@ -328,6 +329,39 @@ describe("POST /api/simulate", () => {
     expect(json.error.code).toBe("PROVIDER_TIMEOUT");
     expect(json.error.recoverable).toBe(true);
     expect(json.recovery).toEqual({ canUseCache: true, fallbackViz: true });
+  });
+
+  it("forces a controlled ProviderTimeoutError for Demo 3 (network) to exercise fallback", async () => {
+    mockClassifyDecision.mockResolvedValueOnce({
+      path_labels: { A: "Option A", B: "Option B" },
+      viz_type: "network",
+      roles: AGENT_ROLES.network,
+    });
+
+    const response = await POST(
+      asNextRequest(
+        makeRequest(
+          {
+            decision: "Partner with a local café ecosystem vs launch solo marketing campaigns independently",
+            context: { industry: "Neighborhood bakery", location: "Madrid, Spain", monthlyRevenue: 10000 },
+            options: { demoScenarioId: DEMO_SCENARIOS["demo-network-v1"].id },
+          },
+          "10.0.0.46",
+        ),
+      ),
+    );
+
+    const json = await response.json();
+
+    expect(response.status).toBe(504);
+    expect(json.status).toBe("error");
+    expect(json.error.code).toBe("PROVIDER_TIMEOUT");
+    expect(json.error.recoverable).toBe(true);
+    expect(json.recovery).toEqual({ canUseCache: true, fallbackViz: true });
+
+    // The forced timeout is applied after classification, so no agent/synthesis work should run.
+    expect(mockRunParallelAgents).not.toHaveBeenCalled();
+    expect(mockSynthesizePath).not.toHaveBeenCalled();
   });
 
   it("returns 502 when classifier provider fails", async () => {

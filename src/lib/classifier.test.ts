@@ -5,6 +5,8 @@ import {
   ParseError,
   ProviderTimeoutError,
 } from "@/lib/classifier";
+import { DEMO_SCENARIOS, DEMO_SCENARIO_ORDER } from "@/lib/demo-scenarios";
+import { derivePathLabels } from "@/lib/derive-path-labels";
 
 const { mockCreate, MockOpenAI } = vi.hoisted(() => {
   const create = vi.fn();
@@ -129,5 +131,27 @@ describe("classifyDecision", () => {
     await expect(
       classifyDecision("Test decision", context, "test-key", "gpt-test", 1000),
     ).rejects.toBeInstanceOf(ProviderTimeoutError);
+  });
+});
+
+describe("classifyDecision (demo scenarios)", () => {
+  it.each(DEMO_SCENARIO_ORDER)("bypasses OpenAI and returns deterministic mapping for %s", async (id) => {
+    const s = DEMO_SCENARIOS[id];
+    mockCreate.mockReset();
+
+    const result = await classifyDecision(
+      s.decision,
+      s.context,
+      "test-key",
+      "gpt-test",
+      1000,
+      id,
+    );
+
+    const [A, B] = derivePathLabels(s.decision);
+    expect(result.path_labels).toEqual({ A, B });
+    expect(result.viz_type).toBe(s.expectedVizType);
+    expect(result.roles).toEqual(AGENT_ROLES[s.expectedVizType]);
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 });

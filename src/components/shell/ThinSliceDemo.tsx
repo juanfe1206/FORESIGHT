@@ -47,6 +47,7 @@ import type { KpiStackSlotProps } from "@/lib/integration-contracts";
 import { VizRouter } from "@/components/viz/VizRouter";
 import { AGENT_ROLES } from "@/lib/types";
 import type { AgentState, VizType } from "@/lib/types";
+import { DEMO_SCENARIOS, DEMO_SCENARIO_ORDER, type DemoScenarioId } from "@/lib/demo-scenarios";
 import { MOCK_BAKERY_MAP_FIXTURE } from "@/lib/mock-fixture";
 import { derivePathLabels } from "@/lib/derive-path-labels";
 import { DeepDivePanel, DeepDiveStrip } from "@/components/narrative";
@@ -137,12 +138,26 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
   const [runStatus, setRunStatus] = useState<UiRunStatus>(initialUiShellState.runStatus);
   const [vizType, setVizType] = useState<VizType>(initialUiShellState.vizType);
   const [form, setForm] = useState<DecisionFormInputState>(emptyDecisionFormState);
+  const [activeDemoScenarioId, setActiveDemoScenarioId] = useState<DemoScenarioId | null>(null);
   const [pathLabels, setPathLabels] = useState<[string, string]>(["Path A", "Path B"]);
   const [agentResults, setAgentResults] = useState<{ A: AgentOutput[]; B: AgentOutput[] } | null>(null);
   const [synthesisResults, setSynthesisResults] = useState<{ A: PathSynthesis; B: PathSynthesis } | null>(null);
   const [kpiResults, setKpiResults] = useState<{ A: KPIs; B: KPIs } | null>(null);
   const [comparison, setComparison] = useState<SimulationResponse["comparison"] | null>(null);
   const [meta, setMeta] = useState<SimulationResponse["meta"] | null>(null);
+
+  const applyDemoScenarioToForm = useCallback((id: DemoScenarioId) => {
+    const s = DEMO_SCENARIOS[id];
+    setForm({
+      decision: s.decision,
+      industry: s.context.industry ?? "",
+      monthlyRevenue: s.context.monthlyRevenue != null ? String(s.context.monthlyRevenue) : "",
+      location: s.context.location ?? "",
+      customerBase: s.context.customerBase ?? "",
+      details: s.context.details ?? "",
+    });
+    setActiveDemoScenarioId(id);
+  }, []);
 
   const applySimulationResponse = useCallback((res: SimulationResponse, cachedReplay: boolean) => {
     const slice = buildHydrationFromSimulationResponse(res, { cachedReplay });
@@ -275,6 +290,9 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
           if (!isMountedRef.current) return;
           isApiCallRef.current = false;
           applySimulationResponse(resolvedReplay, true);
+          // When we replay cached/bundled results, the side panels should show FallbackViz
+          // and the center HUD should use fallback role labels.
+          setVizType("fallback");
           setUiStage("dashboard");
           setRunStatus("fallback");
         }, delay);
@@ -294,7 +312,16 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
               body: JSON.stringify({
                 decision: decision.trim(),
                 context,
-                ...(simulationOptions ? { options: simulationOptions } : {}),
+                ...(activeDemoScenarioId
+                  ? {
+                      options: {
+                        ...(simulationOptions ?? {}),
+                        demoScenarioId: activeDemoScenarioId,
+                      },
+                    }
+                  : simulationOptions
+                    ? { options: simulationOptions }
+                    : {}),
               }),
             });
 
@@ -352,13 +379,14 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
         })();
       });
     },
-    [applySimulationResponse, simulationOptions],
+    [applySimulationResponse, simulationOptions, activeDemoScenarioId],
   );
 
   const resetToInput = useCallback(() => {
     setUiStage("input");
     setRunStatus("idle");
     setForm(emptyDecisionFormState);
+    setActiveDemoScenarioId(null);
     setVizType(initialUiShellState.vizType);
     setAgentResults(null);
     setSynthesisResults(null);
@@ -533,9 +561,43 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                   transition={inputExitTransition}
                   className="mx-auto w-full max-w-xl"
                 >
+                  {isDevPreviewEnabled && (
+                    <div
+                      role="group"
+                      aria-label="Demo scenarios (dev-only)"
+                      className="mb-6 rounded-xl border border-border bg-surface/60 px-4 py-3"
+                    >
+                      <p className="text-caption font-medium text-text-dim">Demo inputs</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {DEMO_SCENARIO_ORDER.map((id) => {
+                          const label =
+                            id === "demo-map-v1" ? "Demo 1: Map" : id === "demo-flow-v1" ? "Demo 2: Flow" : "Demo 3: Network (fallback)";
+                          return (
+                            <button
+                              key={id}
+                              type="button"
+                              data-testid={`demo-scenario-btn-${id}`}
+                              onClick={() => applyDemoScenarioToForm(id)}
+                              className="rounded-lg border border-border px-3 py-2 text-caption text-text transition hover:border-accent hover:text-accent"
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {activeDemoScenarioId ? (
+                        <p className="mt-2 text-caption text-text-dim" data-testid="demo-scenario-selected">
+                          Selected: <span className="font-mono">{activeDemoScenarioId}</span>
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
                   <DecisionForm
                     value={form}
-                    onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+                    onChange={(patch) => {
+                      setForm((prev) => ({ ...prev, ...patch }));
+                      if (activeDemoScenarioId !== null) setActiveDemoScenarioId(null);
+                    }}
                     onValidSubmit={onValidSubmit}
                     isSubmitting={runStatus === "submitting"}
                     formFooter={<SimulationFramingBanner />}

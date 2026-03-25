@@ -9,6 +9,7 @@ import type { SimulationResponse } from "@/lib/types";
 import { __simulationCacheTestUtils } from "@/lib/simulation-client-cache";
 import { validateSimulationResponse } from "@/lib/validate-simulation-response";
 import { SIMULATION_FRAMING_BANNER_TEST_ID } from "@/components/trust/SimulationFramingBanner";
+import { DEMO_SCENARIOS } from "@/lib/demo-scenarios";
 
 const mockFetch = vi.fn();
 
@@ -130,6 +131,26 @@ describe("ThinSliceDemo", () => {
     expect(root).toHaveAttribute("data-run-status", "submitting");
     expect(root).toHaveAttribute("data-ui-stage", "input");
     expect(screen.getByTestId("simulate-submit")).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("demo scenario buttons preload the form and submit includes demoScenarioId", async () => {
+    const user = userEvent.setup();
+    render(<ThinSliceDemo />);
+
+    await user.click(screen.getByTestId("demo-scenario-btn-demo-map-v1"));
+
+    const decisionField = screen.getByRole("textbox", { name: /decision/i });
+    expect(decisionField).toHaveValue(DEMO_SCENARIOS["demo-map-v1"].decision);
+
+    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
+    const [, fetchOptions] = mockFetch.mock.calls[0] as [string, RequestInit];
+
+    const parsed = JSON.parse((fetchOptions.body as string) ?? "{}") as {
+      options?: { demoScenarioId?: string };
+    };
+    expect(parsed.options?.demoScenarioId).toBe("demo-map-v1");
   });
 
   it("flows input → dashboard after API response", async () => {

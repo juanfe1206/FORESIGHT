@@ -19,6 +19,7 @@ import { validateSimulationResponse } from "@/lib/validate-simulation-response";
 import type { NextRequest } from "next/server";
 import { checkRateLimit } from "./rate-limit";
 import { validateSimulationRequest } from "./validate";
+import { DEMO_SCENARIOS } from "@/lib/demo-scenarios";
 
 const CLASSIFY_RECOVERY = {
   canUseCache: true,
@@ -109,13 +110,23 @@ export async function POST(request: NextRequest): Promise<Response> {
     const startedAt = Date.now();
 
     try {
+      const demoScenarioId = validation.data.options?.demoScenarioId;
+
       const { path_labels, viz_type, roles } = await classifyDecision(
         validation.data.decision,
         validation.data.context,
         process.env.LLM_API_KEY,
         model,
         timeoutMs,
+        demoScenarioId,
       );
+
+      // Story 6.4 controlled rehearsal:
+      // In non-production, Demo 3 ("network") intentionally triggers a deterministic timeout
+      // so the shell can exercise FallbackViz via the cache/golden replay policy.
+      if (demoScenarioId === DEMO_SCENARIOS["demo-network-v1"].id && process.env.NODE_ENV !== "production") {
+        throw new ProviderTimeoutError("Demo 3 forced timeout to exercise fallback visualization.");
+      }
       const agentRun = await runParallelAgents({
         pathLabels: path_labels,
         roles,

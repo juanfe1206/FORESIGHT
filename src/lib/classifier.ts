@@ -1,5 +1,7 @@
 import OpenAI from "openai";
 import { AGENT_ROLES, type SimulationRequest, type VizType } from "@/lib/types";
+import { DEMO_SCENARIOS, type DemoScenarioId } from "@/lib/demo-scenarios";
+import { derivePathLabels } from "@/lib/derive-path-labels";
 
 export interface ClassifyResult {
   path_labels: { A: string; B: string };
@@ -68,7 +70,20 @@ export async function classifyDecision(
   apiKey: string,
   model: string,
   timeoutMs: number,
+  demoScenarioId?: string,
 ): Promise<ClassifyResult> {
+  // Demo-mode: when a stable demoScenarioId is provided, return deterministic mapping
+  // (no OpenAI call) so CI/demo rehearsals stay repeatable.
+  if (demoScenarioId && demoScenarioId in DEMO_SCENARIOS) {
+    const scenario = DEMO_SCENARIOS[demoScenarioId as DemoScenarioId]!;
+    const [A, B] = derivePathLabels(decision);
+    return {
+      path_labels: { A, B },
+      viz_type: scenario.expectedVizType,
+      roles: AGENT_ROLES[scenario.expectedVizType],
+    };
+  }
+
   const client = new OpenAI({ apiKey });
 
   let completion;
