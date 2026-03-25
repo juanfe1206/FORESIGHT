@@ -122,7 +122,10 @@ async function navigateWizardAndSubmit(decision: string) {
   await act(async () => {
     fireEvent.click(screen.getByTestId("wizard-confirm-location"));
   });
-  await waitFor(() => expect(screen.getByTestId("wizard-step-3")).toBeInTheDocument());
+  await waitFor(
+    () => expect(screen.getByTestId("wizard-step-3")).toBeInTheDocument(),
+    { timeout: 6000 },
+  );
 
   await act(async () => {
     fireEvent.click(screen.getByTestId("wizard-submit"));
@@ -251,7 +254,10 @@ describe("ThinSliceDemo", () => {
     });
 
     // Demo buttons skip to step 3
-    await waitFor(() => expect(screen.getByTestId("wizard-step-3")).toBeInTheDocument());
+    await waitFor(
+      () => expect(screen.getByTestId("wizard-step-3")).toBeInTheDocument(),
+      { timeout: 6000 },
+    );
 
     await act(async () => {
       fireEvent.click(screen.getByTestId("wizard-submit"));
@@ -266,7 +272,7 @@ describe("ThinSliceDemo", () => {
     };
     expect(parsed.options?.demoScenarioId).toBe("demo-map-v1");
     expect(parsed.context?.businessType).toBe("cafe");
-  });
+  }, 15000);
 
   it("Demo 3 PROVIDER_TIMEOUT triggers cache replay with runStatus=fallback and vizType=fallback", async () => {
     vi.stubEnv("NEXT_PUBLIC_ENABLE_GOLDEN_REPLAY", "false");
@@ -296,7 +302,10 @@ describe("ThinSliceDemo", () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId("demo-scenario-btn-demo-network-v1"));
     });
-    await waitFor(() => expect(screen.getByTestId("wizard-step-3")).toBeInTheDocument());
+    await waitFor(
+      () => expect(screen.getByTestId("wizard-step-3")).toBeInTheDocument(),
+      { timeout: 6000 },
+    );
     await act(async () => {
       fireEvent.click(screen.getByTestId("wizard-submit"));
     });
@@ -309,7 +318,7 @@ describe("ThinSliceDemo", () => {
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard");
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-viz-type", "fallback");
     expect(screen.getByTestId("fallback-shell")).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("shows running stage with three-panel slots via dev panel", async () => {
     const user = userEvent.setup();

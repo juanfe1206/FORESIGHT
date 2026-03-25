@@ -182,7 +182,9 @@ export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoP
       productsOrServices: s.productsOrServices ?? "",
     });
     setPreloadedCompetitors(s.confirmedCompetitors ?? null);
-    setWizardInitialStep(0);
+    // Demo scenarios include preloaded competitors and a fully populated context,
+    // so we skip the early wizard steps and land directly on the competitor confirm step.
+    setWizardInitialStep(3);
     setActiveDemoScenarioId(id);
   }, []);
 
@@ -719,8 +721,8 @@ export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoP
                           roles={[...AGENT_ROLES[vizType]]}
                           pathLabels={hudPathLabels}
                           agentStatesByPath={agentStatesByPath}
-                          insightsByPath={insightsByPath}
-                          agentsByPath={{ A: pathDataA.agents, B: pathDataB.agents }}
+                          insightsByPath={runStatus === "inProgress" ? undefined : insightsByPath}
+                          agentsByPath={runStatus === "inProgress" ? undefined : { A: pathDataA.agents, B: pathDataB.agents }}
                         />
                       </motion.article>
                     }
