@@ -209,7 +209,7 @@ describe("ThinSliceDemo", () => {
     await user.click(screen.getByTestId("read-full-story-btn"));
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "deepDive");
     expect(screen.getByTestId("deep-dive-shell")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Invest in Instagram ads/i })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /Path A/i })).toHaveAttribute("aria-selected", "true");
 
     await user.click(screen.getByTestId("back-to-dashboard-btn"));
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard");

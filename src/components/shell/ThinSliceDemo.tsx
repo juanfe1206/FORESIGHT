@@ -19,7 +19,7 @@ import {
   emptyDecisionFormState,
   type DecisionFormInputState,
 } from "@/components/input/DecisionForm";
-import type { AgentOutput, KPIs, PathSynthesis, SimulationResponse } from "@/lib/types";
+import type { AgentOutput, KPIs, PathData, PathSynthesis, SimulationResponse } from "@/lib/types";
 import type { SimulationRequest } from "@/lib/types";
 import {
   RUN_MOCK_MS,
@@ -35,7 +35,7 @@ import { AgentHUD } from "@/components/agents/AgentHUD";
 import { KpiStack } from "@/components/dashboard/KpiStack";
 import { ScoreRing } from "@/components/dashboard/ScoreRing";
 import { READ_FULL_STORY_DELAY_S } from "@/lib/dashboard-choreography";
-import { MOCK_KPI_STACK_PROPS, MOCK_DEEP_DIVE_PROPS } from "@/lib/integration-contracts";
+import { MOCK_KPI_STACK_PROPS } from "@/lib/integration-contracts";
 import type { KpiStackSlotProps } from "@/lib/integration-contracts";
 import { VizRouter } from "@/components/viz/VizRouter";
 import { AGENT_ROLES } from "@/lib/types";
@@ -115,33 +115,46 @@ export function ThinSliceDemo() {
     B: AgentState[];
   }>(() => ({ A: [...dormantRow], B: [...dormantRow] }));
 
-  const insightsByPath = useMemo(() => {
-    const short = (s: string) => s.trim().split(/\s+/).slice(0, 4).join(" ");
-    return {
-      A: MOCK_BAKERY_MAP_FIXTURE.paths.A.agents.map((a) => short(a.insight)),
-      B: MOCK_BAKERY_MAP_FIXTURE.paths.B.agents.map((a) => short(a.insight)),
-    };
-  }, []);
-
   const hudPathLabels = useMemo(
     () => ({ A: pathLabels[0], B: pathLabels[1] }),
     [pathLabels],
   );
 
-  const deepDiveProps = (synthesisResults && kpiResults && agentResults)
-    ? {
-        pathA: { agents: agentResults.A, synthesis: synthesisResults.A, kpis: kpiResults.A },
-        pathB: { agents: agentResults.B, synthesis: synthesisResults.B, kpis: kpiResults.B },
-        pathLabels: { A: pathLabels[0], B: pathLabels[1] },
-      }
-    : MOCK_DEEP_DIVE_PROPS;
+  /** Real PathData for each path — falls back to fixture until API results arrive. */
+  const pathDataA = useMemo((): PathData => ({
+    agents: agentResults?.A ?? MOCK_BAKERY_MAP_FIXTURE.paths.A.agents,
+    synthesis: synthesisResults?.A ?? MOCK_BAKERY_MAP_FIXTURE.paths.A.synthesis,
+    kpis: kpiResults?.A ?? MOCK_BAKERY_MAP_FIXTURE.paths.A.kpis,
+  }), [agentResults, synthesisResults, kpiResults]);
+
+  const pathDataB = useMemo((): PathData => ({
+    agents: agentResults?.B ?? MOCK_BAKERY_MAP_FIXTURE.paths.B.agents,
+    synthesis: synthesisResults?.B ?? MOCK_BAKERY_MAP_FIXTURE.paths.B.synthesis,
+    kpis: kpiResults?.B ?? MOCK_BAKERY_MAP_FIXTURE.paths.B.kpis,
+  }), [agentResults, synthesisResults, kpiResults]);
+
+  const insightsByPath = useMemo(() => {
+    const short = (s: string) => s.trim().split(/\s+/).slice(0, 4).join(" ");
+    return {
+      A: pathDataA.agents.map((a) => short(a.insight)),
+      B: pathDataB.agents.map((a) => short(a.insight)),
+    };
+  }, [pathDataA, pathDataB]);
+
+  const deepDiveProps = useMemo(() => ({
+    pathA: pathDataA,
+    pathB: pathDataB,
+    pathLabels: hudPathLabels,
+  }), [pathDataA, pathDataB, hudPathLabels]);
 
   const kpiStackProps = useMemo(
     (): KpiStackSlotProps => ({
-      ...MOCK_KPI_STACK_PROPS,
+      kpisA: kpiResults?.A ?? MOCK_KPI_STACK_PROPS.kpisA,
+      kpisB: kpiResults?.B ?? MOCK_KPI_STACK_PROPS.kpisB,
+      comparison: comparison ?? MOCK_KPI_STACK_PROPS.comparison,
       pathLabels: hudPathLabels,
     }),
-    [hudPathLabels],
+    [kpiResults, comparison, hudPathLabels],
   );
 
   useEffect(() => {
@@ -455,7 +468,7 @@ export function ThinSliceDemo() {
                         {vizType === "map" ? (
                           <MapHalf
                             viz_type="map"
-                            pathData={MOCK_BAKERY_MAP_FIXTURE.paths.A}
+                            pathData={pathDataA}
                             pathLabel={pathLabels[0]}
                           />
                         ) : (
@@ -468,7 +481,7 @@ export function ThinSliceDemo() {
                             <div className="mt-3 flex min-h-0 flex-1 flex-col">
                               <VizRouter
                                 viz_type={vizType}
-                                pathData={MOCK_BAKERY_MAP_FIXTURE.paths.A}
+                                pathData={pathDataA}
                                 pathLabel={pathLabels[0]}
                                 agentStates={agentStatesByPath.A}
                               />
@@ -497,7 +510,7 @@ export function ThinSliceDemo() {
                         {vizType === "map" ? (
                           <MapHalf
                             viz_type="map"
-                            pathData={MOCK_BAKERY_MAP_FIXTURE.paths.B}
+                            pathData={pathDataB}
                             pathLabel={pathLabels[1]}
                           />
                         ) : (
@@ -510,7 +523,7 @@ export function ThinSliceDemo() {
                             <div className="mt-3 flex min-h-0 flex-1 flex-col">
                               <VizRouter
                                 viz_type={vizType}
-                                pathData={MOCK_BAKERY_MAP_FIXTURE.paths.B}
+                                pathData={pathDataB}
                                 pathLabel={pathLabels[1]}
                                 agentStates={agentStatesByPath.B}
                               />
@@ -539,23 +552,35 @@ export function ThinSliceDemo() {
                       aria-label="Path A summary and KPI slot"
                       className="order-1 lg:order-1"
                     >
-                      <VizMapSideCanvas side="left" vizType={vizType}>
-                        <motion.div {...panelMotion} transition={springTransition} className="h-full">
-                          <PathSummaryCard
+                      <motion.div {...panelMotion} transition={springTransition} className="h-full">
+                        {vizType === "map" ? (
+                          <VizMapSideCanvas side="left" vizType={vizType}>
+                            <PathSummaryCard
+                              pathLabel={pathLabels[0]}
+                              pathId="A"
+                              accentClass="text-accent"
+                              summary={pathDataA.synthesis.summary}
+                              footer={
+                                <ScoreRing
+                                  score={kpiStackProps.kpisA.overallScore}
+                                  pathLabel={pathLabels[0]}
+                                  pathTone="A"
+                                />
+                              }
+                            />
+                          </VizMapSideCanvas>
+                        ) : (
+                          <VizResultCard
                             pathLabel={pathLabels[0]}
                             pathId="A"
                             accentClass="text-accent"
-                            summary={synthesisResults?.A?.summary ?? MOCK_BAKERY_MAP_FIXTURE.paths.A.synthesis.summary}
-                            footer={
-                              <ScoreRing
-                                score={kpiStackProps.kpisA.overallScore}
-                                pathLabel={pathLabels[0]}
-                                pathTone="A"
-                              />
-                            }
+                            vizType={vizType}
+                            pathData={pathDataA}
+                            score={kpiStackProps.kpisA.overallScore}
+                            agentStates={agentStatesByPath.A}
                           />
-                        </motion.div>
-                      </VizMapSideCanvas>
+                        )}
+                      </motion.div>
                     </LeftPanelSlot>
                     <CenterPanelSlot
                       aria-label="KPI stack and comparison slot"
@@ -616,27 +641,39 @@ export function ThinSliceDemo() {
                       aria-label="Path B summary and KPI slot"
                       className="order-3 lg:order-3"
                     >
-                      <VizMapSideCanvas side="right" vizType={vizType}>
-                        <motion.div
-                          {...panelMotion}
-                          transition={{ ...springTransition, delay: 0.1 }}
-                          className="h-full"
-                        >
-                          <PathSummaryCard
+                      <motion.div
+                        {...panelMotion}
+                        transition={{ ...springTransition, delay: 0.1 }}
+                        className="h-full"
+                      >
+                        {vizType === "map" ? (
+                          <VizMapSideCanvas side="right" vizType={vizType}>
+                            <PathSummaryCard
+                              pathLabel={pathLabels[1]}
+                              pathId="B"
+                              accentClass="text-blue"
+                              summary={pathDataB.synthesis.summary}
+                              footer={
+                                <ScoreRing
+                                  score={kpiStackProps.kpisB.overallScore}
+                                  pathLabel={pathLabels[1]}
+                                  pathTone="B"
+                                />
+                              }
+                            />
+                          </VizMapSideCanvas>
+                        ) : (
+                          <VizResultCard
                             pathLabel={pathLabels[1]}
                             pathId="B"
                             accentClass="text-blue"
-                            summary={synthesisResults?.B?.summary ?? MOCK_BAKERY_MAP_FIXTURE.paths.B.synthesis.summary}
-                            footer={
-                              <ScoreRing
-                                score={kpiStackProps.kpisB.overallScore}
-                                pathLabel={pathLabels[1]}
-                                pathTone="B"
-                              />
-                            }
+                            vizType={vizType}
+                            pathData={pathDataB}
+                            score={kpiStackProps.kpisB.overallScore}
+                            agentStates={agentStatesByPath.B}
                           />
-                        </motion.div>
-                      </VizMapSideCanvas>
+                        )}
+                      </motion.div>
                     </RightPanelSlot>
                   </div>
                   <div className="flex flex-col gap-3 sm:flex-row sm:justify-center sm:gap-4">
@@ -747,6 +784,42 @@ export function ThinSliceDemo() {
         </div>
       </MotionConfig>
     </UiShellContext.Provider>
+  );
+}
+
+function VizResultCard({
+  pathLabel,
+  pathId,
+  accentClass,
+  vizType,
+  pathData,
+  score,
+  agentStates,
+}: {
+  pathLabel: string;
+  pathId: "A" | "B";
+  accentClass: string;
+  vizType: VizType;
+  pathData: PathData;
+  score: number;
+  agentStates: AgentState[];
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-surface p-4">
+      <h3 className={`shrink-0 font-heading text-h3 ${accentClass}`}>{pathLabel}</h3>
+      <p className="shrink-0 text-caption text-text-dim">Path {pathId}</p>
+      <div className="mt-3 flex min-h-0 flex-1 flex-col">
+        <VizRouter
+          viz_type={vizType}
+          pathData={pathData}
+          pathLabel={pathLabel}
+          agentStates={agentStates}
+        />
+      </div>
+      <div className="mt-4 flex shrink-0 flex-col items-center border-t border-border/50 pt-4">
+        <ScoreRing score={score} pathLabel={pathLabel} pathTone={pathId} />
+      </div>
+    </div>
   );
 }
 
