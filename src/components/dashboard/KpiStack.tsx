@@ -1,7 +1,8 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotionConfig } from "framer-motion";
 import type { KpiStackSlotProps } from "@/lib/integration-contracts";
+import { KPI_STACK_ROW_STAGGER_S } from "@/lib/dashboard-choreography";
 import type { KPIs } from "@/lib/types";
 import { KPICard } from "./KPICard";
 
@@ -23,7 +24,7 @@ export const KPI_STACK_ROW_DEFS: {
 
 export function KpiStack(props: KpiStackSlotProps) {
   const { kpisA, kpisB, comparison, pathLabels } = props;
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionConfig() === true;
 
   return (
     <section
@@ -43,7 +44,7 @@ export function KpiStack(props: KpiStackSlotProps) {
       <div className="flex flex-col gap-3">
         {KPI_STACK_ROW_DEFS.map((row, index) => {
           const winner = comparison.winnerByKpi[row.key];
-          const delay = reduceMotion ? 0 : index * 0.15;
+          const delay = reduceMotion ? 0 : index * KPI_STACK_ROW_STAGGER_S;
 
           return (
             <motion.div

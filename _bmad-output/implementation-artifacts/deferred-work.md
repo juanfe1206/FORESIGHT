@@ -45,3 +45,12 @@
 - `CountUpNumber` initial "0%" flash on first frame — inherent to count-from-zero design; not a defect. Revisit if product feedback indicates visible jank on slow hardware.
 - `CountUpNumber` no internal NaN guard — guarded at all callsites via `Number.isFinite`; internal defensive guard worth adding if the component is reused outside KPICard in future.
 - `line-clamp-5` silently truncates long narrative KPIs in `KPICard` — acceptable with current fixture data; revisit when real API `opportunityCost` strings arrive to assess actual line lengths.
+
+## Deferred from: code review of 5-3-score-rings-simulation-dashboard-transition (2026-03-25)
+
+- Choreography constants (`KPI_STACK_ROW_COUNT`, `KPI_COUNT_UP_DURATION_S`, `WINNER_BADGE_DELAY_S`) in `dashboard-choreography.ts` manually duplicate values from KpiStack row defs, CountUpNumber default, and WinnerBadge — no compile-time enforcement; silent drift risk if any source changes.
+- `CountUpNumber` has no guard for non-finite `value` prop (NaN → renders "NaN") — pre-existing; ScoreRing's `clampOverallScore` prevents exposure in this story's path. Add internal guard when reuse expands.
+- `progressbar` `aria-valuenow` announces final score from first render while count-up animates — acceptable ARIA progressbar pattern; the arc animation visually indicates progress. Low user impact.
+- SSR/hydration risk from `useReducedMotionConfig` in "use client" components — pre-existing pattern project-wide; App Router "use client" directive constrains to client rendering.
+- `cx` variable used for both cx and cy SVG attributes in ScoreRing — misleading for non-square viewBox cases; not a correctness bug with current square layout.
+- Test timing assertions in `ScoreRing.test.tsx` are loose (no minimum delay check, some reduced-motion coverage is redundant) — acceptable for current MVP test coverage level.

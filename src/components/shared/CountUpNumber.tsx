@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducedMotion } from "framer-motion";
+import { useReducedMotionConfig } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 
 const DEFAULT_MS = 1000;
@@ -21,7 +21,7 @@ export type CountUpNumberProps = {
 
 /**
  * Counts from 0 to `value` over ~1s (ease-out). Uses JetBrains Mono via `font-mono` / KPI scale.
- * When the user prefers reduced motion, shows the target value immediately (no effect-driven state).
+ * When reduced motion is preferred (`MotionConfig` or OS), shows the target value immediately.
  */
 export function CountUpNumber({
   value,
@@ -30,12 +30,13 @@ export function CountUpNumber({
   suffix = "%",
   "aria-label": ariaLabel,
 }: CountUpNumberProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotionConfig();
   const reduce = reducedMotion === true;
   const target = Math.round(value);
   const [display, setDisplay] = useState(0);
   const startRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
+  const safeDurationMs = Number.isFinite(durationMs) && durationMs > 0 ? durationMs : DEFAULT_MS;
 
   useEffect(() => {
     if (reduce) return;
@@ -45,7 +46,7 @@ export function CountUpNumber({
     const tick = (now: number) => {
       if (startRef.current === null) startRef.current = now;
       const elapsed = now - startRef.current;
-      const t = Math.min(1, elapsed / durationMs);
+      const t = Math.min(1, elapsed / safeDurationMs);
       setDisplay(Math.round(value * easeOutCubic(t)));
       if (t < 1) {
         rafRef.current = requestAnimationFrame(tick);
@@ -56,7 +57,7 @@ export function CountUpNumber({
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [value, durationMs, reduce]);
+  }, [value, safeDurationMs, reduce]);
 
   const shown = reduce ? target : display;
   const text = `${shown}${suffix}`;

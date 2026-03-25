@@ -11,6 +11,7 @@ import {
   MOCK_DEEP_DIVE_PROPS,
   MOCK_KPI_STACK_PROPS,
   MOCK_SCORE_RING_PROPS_A,
+  MOCK_SCORE_RING_PROPS_B,
   MOCK_VIZ_SLOT_PROPS_A,
 } from "./integration-contracts";
 import type { VizType } from "./types";
@@ -22,14 +23,16 @@ describe("integration-contracts", () => {
     const viz: VizSlotProps = MOCK_VIZ_SLOT_PROPS_A;
     const hud: AgentHudSlotProps = MOCK_AGENT_HUD_PROPS;
     const kpi: KpiStackSlotProps = MOCK_KPI_STACK_PROPS;
-    const score: ScoreRingSlotProps = MOCK_SCORE_RING_PROPS_A;
+    const scoreA: ScoreRingSlotProps = MOCK_SCORE_RING_PROPS_A;
+    const scoreB: ScoreRingSlotProps = MOCK_SCORE_RING_PROPS_B;
     const deep: DeepDivePanelSlotProps = MOCK_DEEP_DIVE_PROPS;
 
     expect(typeof viz.pathLabel).toBe("string");
     expect(viz.pathLabel.length).toBeGreaterThan(0);
     expect(hud.roles).toHaveLength(4);
     expect(kpi.pathLabels.A).toBeDefined();
-    expect(score.score).toBeGreaterThanOrEqual(0);
+    expect(scoreA.score).toBe(67);
+    expect(scoreB.score).toBe(78);
     expect(deep.pathA.kpis).toBeDefined();
   });
 

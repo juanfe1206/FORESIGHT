@@ -79,6 +79,11 @@ export const MOCK_SCORE_RING_PROPS_A: ScoreRingSlotProps = {
   pathLabel: fx.path_labels.A,
 };
 
+export const MOCK_SCORE_RING_PROPS_B: ScoreRingSlotProps = {
+  score: fx.paths.B.kpis.overallScore,
+  pathLabel: fx.path_labels.B,
+};
+
 export const MOCK_DEEP_DIVE_PROPS: DeepDivePanelSlotProps = {
   pathA: fx.paths.A,
   pathB: fx.paths.B,

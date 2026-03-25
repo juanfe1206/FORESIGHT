@@ -1,7 +1,20 @@
 "use client";
 
-import { AnimatePresence, MotionConfig, motion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  AnimatePresence,
+  MotionConfig,
+  motion,
+  useReducedMotionConfig,
+} from "framer-motion";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   RUN_MOCK_MS,
   initialUiShellState,
@@ -13,6 +26,8 @@ import {
 import { UiShellContext } from "@/lib/ui-shell-context";
 import { AgentHUD } from "@/components/agents/AgentHUD";
 import { KpiStack } from "@/components/dashboard/KpiStack";
+import { ScoreRing } from "@/components/dashboard/ScoreRing";
+import { READ_FULL_STORY_DELAY_S } from "@/lib/dashboard-choreography";
 import { MOCK_KPI_STACK_PROPS } from "@/lib/integration-contracts";
 import type { KpiStackSlotProps } from "@/lib/integration-contracts";
 import { AGENT_ROLES } from "@/lib/types";
@@ -62,6 +77,8 @@ function derivePathLabels(decision: string): [string, string] {
 
 export function ThinSliceDemo() {
   const isDevPreviewEnabled = process.env.NODE_ENV !== "production";
+  const reducedMotionResolved = useReducedMotionConfig();
+  const readStoryDelay = reducedMotionResolved === true ? 0 : READ_FULL_STORY_DELAY_S;
 
   // P2: Guard queueMicrotask setter against component unmount
   const isMountedRef = useRef(true);
@@ -345,9 +362,8 @@ export function ThinSliceDemo() {
                   role="region"
                   aria-label="Simulation running"
                   initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={springTransition}
+                  animate={{ opacity: 1, transition: springTransition }}
+                  exit={{ opacity: 0, transition: { duration: 0.3, ease: "easeInOut" } }}
                   className="flex flex-1 flex-col"
                 >
                   <SimulationShell
@@ -414,6 +430,13 @@ export function ThinSliceDemo() {
                           pathId="A"
                           accentClass="text-accent"
                           summary={MOCK_BAKERY_MAP_FIXTURE.paths.A.synthesis.summary}
+                          footer={
+                            <ScoreRing
+                              score={kpiStackProps.kpisA.overallScore}
+                              pathLabel={pathLabels[0]}
+                              pathTone="A"
+                            />
+                          }
                         />
                       </motion.div>
                     </LeftPanelSlot>
@@ -427,6 +450,25 @@ export function ThinSliceDemo() {
                         className="rounded-xl border border-border bg-surface p-4 sm:p-6"
                       >
                         <KpiStack {...kpiStackProps} />
+                      </motion.div>
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{
+                          delay: readStoryDelay,
+                          duration: reducedMotionResolved === true ? 0.01 : 0.35,
+                          ease: "easeOut",
+                        }}
+                        className="mt-4 flex justify-center px-1"
+                      >
+                        <button
+                          type="button"
+                          data-testid="read-full-story-cta"
+                          className="rounded-lg bg-accent px-6 py-3 font-heading text-body font-semibold text-bg transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                          onClick={() => setUiStage("deepDive")}
+                        >
+                          Read full story
+                        </button>
                       </motion.div>
                     </CenterPanelSlot>
                     <RightPanelSlot
@@ -443,6 +485,13 @@ export function ThinSliceDemo() {
                           pathId="B"
                           accentClass="text-blue"
                           summary={MOCK_BAKERY_MAP_FIXTURE.paths.B.synthesis.summary}
+                          footer={
+                            <ScoreRing
+                              score={kpiStackProps.kpisB.overallScore}
+                              pathLabel={pathLabels[1]}
+                              pathTone="B"
+                            />
+                          }
                         />
                       </motion.div>
                     </RightPanelSlot>
@@ -512,17 +561,24 @@ function PathSummaryCard({
   pathId,
   accentClass,
   summary,
+  footer,
 }: {
   pathLabel: string;
   pathId: "A" | "B";
   accentClass: string;
   summary: string;
+  footer?: ReactNode;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-xl border border-border bg-surface p-4">
+    <div className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-surface p-4">
       <h3 className={`font-heading text-h3 ${accentClass}`}>{pathLabel}</h3>
       <p className="text-caption text-text-dim">Path {pathId}</p>
-      <p className="mt-4 text-body leading-snug text-text">{summary}</p>
+      <p className="mt-4 flex-1 text-body leading-snug text-text">{summary}</p>
+      {footer ? (
+        <div className="mt-6 flex shrink-0 flex-col items-center border-t border-border/50 pt-4">
+          {footer}
+        </div>
+      ) : null}
     </div>
   );
 }
