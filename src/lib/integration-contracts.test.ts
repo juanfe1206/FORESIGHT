@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type {
   AgentHudSlotProps,
   DeepDivePanelSlotProps,
+  FallbackVizProps,
   KpiStackSlotProps,
   ScoreRingSlotProps,
   VizSlotProps,
@@ -9,10 +10,12 @@ import type {
 import {
   MOCK_AGENT_HUD_PROPS,
   MOCK_DEEP_DIVE_PROPS,
+  MOCK_FALLBACK_VIZ_PROPS_A,
   MOCK_KPI_STACK_PROPS,
   MOCK_SCORE_RING_PROPS_A,
   MOCK_SCORE_RING_PROPS_B,
   MOCK_VIZ_SLOT_PROPS_A,
+  MOCK_VIZ_SLOT_PROPS_NETWORK,
 } from "./integration-contracts";
 import type { VizType } from "./types";
 
@@ -21,6 +24,8 @@ describe("integration-contracts", () => {
 
   it("assigns each mock to its contract interface (compile-time + structural)", () => {
     const viz: VizSlotProps = MOCK_VIZ_SLOT_PROPS_A;
+    const vizNet: VizSlotProps = MOCK_VIZ_SLOT_PROPS_NETWORK;
+    const fb: FallbackVizProps = MOCK_FALLBACK_VIZ_PROPS_A;
     const hud: AgentHudSlotProps = MOCK_AGENT_HUD_PROPS;
     const kpi: KpiStackSlotProps = MOCK_KPI_STACK_PROPS;
     const scoreA: ScoreRingSlotProps = MOCK_SCORE_RING_PROPS_A;
@@ -29,6 +34,8 @@ describe("integration-contracts", () => {
 
     expect(typeof viz.pathLabel).toBe("string");
     expect(viz.pathLabel.length).toBeGreaterThan(0);
+    expect(vizNet.viz_type).toBe("network");
+    expect(fb.agentStates).toHaveLength(4);
     expect(hud.roles).toHaveLength(4);
     expect(kpi.pathLabels.A).toBeDefined();
     expect(scoreA.score).toBe(67);
@@ -38,6 +45,16 @@ describe("integration-contracts", () => {
 
   it("MOCK_VIZ_SLOT_PROPS_A uses a valid VizType", () => {
     expect(VIZ_TYPES).toContain(MOCK_VIZ_SLOT_PROPS_A.viz_type);
+  });
+
+  it("MOCK_VIZ_SLOT_PROPS_NETWORK uses network viz_type", () => {
+    expect(MOCK_VIZ_SLOT_PROPS_NETWORK.viz_type).toBe("network");
+    expect(VIZ_TYPES).toContain(MOCK_VIZ_SLOT_PROPS_NETWORK.viz_type);
+  });
+
+  it("MOCK_FALLBACK_VIZ_PROPS_A satisfies FallbackVizProps", () => {
+    expect(MOCK_FALLBACK_VIZ_PROPS_A.viz_type).toBe("fallback");
+    expect(MOCK_FALLBACK_VIZ_PROPS_A.agentStates).toHaveLength(4);
   });
 
   it("MOCK_KPI_STACK_PROPS.comparison.overallWinner is A or B", () => {

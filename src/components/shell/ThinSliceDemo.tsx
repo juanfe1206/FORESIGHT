@@ -30,8 +30,9 @@ import { ScoreRing } from "@/components/dashboard/ScoreRing";
 import { READ_FULL_STORY_DELAY_S } from "@/lib/dashboard-choreography";
 import { MOCK_KPI_STACK_PROPS } from "@/lib/integration-contracts";
 import type { KpiStackSlotProps } from "@/lib/integration-contracts";
-import { AGENT_ROLES } from "@/lib/types";
-import type { AgentState } from "@/lib/types";
+import { VizRouter } from "@/components/viz/VizRouter";
+import { AGENT_ROLES, isVizType } from "@/lib/types";
+import type { AgentState, VizType } from "@/lib/types";
 import { MOCK_BAKERY_MAP_FIXTURE } from "@/lib/mock-fixture";
 import { CenterPanelSlot, LeftPanelSlot, RightPanelSlot } from "./PanelSlots";
 import { SimulationShell } from "./SimulationShell";
@@ -103,6 +104,8 @@ export function ThinSliceDemo() {
     A: AgentState[];
     B: AgentState[];
   }>(() => ({ A: [...dormantRow], B: [...dormantRow] }));
+
+  const [devVizType, setDevVizType] = useState<VizType>(MOCK_BAKERY_MAP_FIXTURE.viz_type);
 
   const insightsByPath = useMemo(() => {
     const short = (s: string) => s.trim().split(/\s+/).slice(0, 4).join(" ");
@@ -220,6 +223,11 @@ export function ThinSliceDemo() {
     [onDevRunStatusChange],
   );
 
+  const handleDevVizTypeChange = useCallback((ev: React.ChangeEvent<HTMLSelectElement>) => {
+    const v = ev.target.value;
+    if (isVizType(v)) setDevVizType(v);
+  }, []);
+
   return (
     // D1: Provide live uiStage / runStatus to the subtree (satisfies AC1)
     <UiShellContext.Provider value={{ uiStage, runStatus, setUiStage, setRunStatus }}>
@@ -279,6 +287,23 @@ export function ThinSliceDemo() {
                   <option value="completed">completed</option>
                   <option value="fallback">fallback (shell)</option>
                   <option value="error">error (shell)</option>
+                </select>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor="dev-viz-type" className="font-medium text-text">
+                  viz_type
+                </label>
+                <select
+                  id="dev-viz-type"
+                  value={devVizType}
+                  onChange={handleDevVizTypeChange}
+                  data-testid="dev-viz-type-preview"
+                  className="rounded border border-border bg-bg px-2 py-1 text-body text-text"
+                >
+                  <option value="map">map</option>
+                  <option value="flow">flow</option>
+                  <option value="network">network</option>
+                  <option value="fallback">fallback</option>
                 </select>
               </div>
               <span className="hidden sm:inline">(non-production only)</span>
@@ -374,10 +399,17 @@ export function ThinSliceDemo() {
                       <motion.article
                         {...panelMotion}
                         transition={springTransition}
-                        className={runCardClassLeft}
+                        className={`${runCardClassLeft} min-h-0 flex-1`}
                       >
-                        <h2 className="font-heading text-h3 text-accent">{pathLabels[0]}</h2>
-                        <p className="mt-2 text-caption text-text-dim">Path A — framing</p>
+                        <h2 className="shrink-0 font-heading text-h3 text-accent">{pathLabels[0]}</h2>
+                        <div className="mt-3 flex min-h-0 flex-1 flex-col">
+                          <VizRouter
+                            viz_type={devVizType}
+                            pathData={MOCK_BAKERY_MAP_FIXTURE.paths.A}
+                            pathLabel={pathLabels[0]}
+                            agentStates={agentStatesByPath.A}
+                          />
+                        </div>
                       </motion.article>
                     }
                     center={
@@ -387,8 +419,8 @@ export function ThinSliceDemo() {
                         className={runCardClassCenter}
                       >
                         <AgentHUD
-                          viz_type={MOCK_BAKERY_MAP_FIXTURE.viz_type}
-                          roles={[...AGENT_ROLES[MOCK_BAKERY_MAP_FIXTURE.viz_type]]}
+                          viz_type={devVizType}
+                          roles={[...AGENT_ROLES[devVizType]]}
                           pathLabels={hudPathLabels}
                           agentStatesByPath={agentStatesByPath}
                           insightsByPath={insightsByPath}
@@ -399,10 +431,17 @@ export function ThinSliceDemo() {
                       <motion.article
                         {...panelMotion}
                         transition={{ ...springTransition, delay: 0.1 }}
-                        className={runCardClassRight}
+                        className={`${runCardClassRight} min-h-0 flex-1`}
                       >
-                        <h2 className="font-heading text-h3 text-blue">{pathLabels[1]}</h2>
-                        <p className="mt-2 text-caption text-text-dim">Path B — framing</p>
+                        <h2 className="shrink-0 font-heading text-h3 text-blue">{pathLabels[1]}</h2>
+                        <div className="mt-3 flex min-h-0 flex-1 flex-col">
+                          <VizRouter
+                            viz_type={devVizType}
+                            pathData={MOCK_BAKERY_MAP_FIXTURE.paths.B}
+                            pathLabel={pathLabels[1]}
+                            agentStates={agentStatesByPath.B}
+                          />
+                        </div>
                       </motion.article>
                     }
                   />

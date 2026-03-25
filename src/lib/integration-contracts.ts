@@ -14,6 +14,16 @@ export interface VizSlotProps {
 }
 
 /**
+ * Side-panel fallback diamond viz (Story 5.4). Extends `VizSlotProps` with the four agent
+ * slots for that path — must match `AgentHUD` for the same path. Node labels use
+ * `AGENT_ROLES.fallback` regardless of `viz_type` (shell may force fallback while response
+ * still carries another mode).
+ */
+export interface FallbackVizProps extends VizSlotProps {
+  agentStates: AgentState[];
+}
+
+/**
  * Center panel while simulation is running (Epic 5).
  * Dual-path agent animation — both paths progress in parallel (Story 5.1).
  */
@@ -58,7 +68,22 @@ export const MOCK_VIZ_SLOT_PROPS_A: VizSlotProps = {
   pathLabel: fx.path_labels.A,
 };
 
+/** Path A bakery data with `viz_type: "network"` for viz / contract tests. */
+export const MOCK_VIZ_SLOT_PROPS_NETWORK: VizSlotProps = {
+  viz_type: "network",
+  pathData: fx.paths.A,
+  pathLabel: fx.path_labels.A,
+};
+
 const dormant4 = (): AgentState[] => ["dormant", "dormant", "dormant", "dormant"];
+
+/** Path A + dormant agents — `FallbackViz` contract / tests. */
+export const MOCK_FALLBACK_VIZ_PROPS_A: FallbackVizProps = {
+  viz_type: "fallback",
+  pathData: fx.paths.A,
+  pathLabel: fx.path_labels.A,
+  agentStates: dormant4(),
+};
 
 export const MOCK_AGENT_HUD_PROPS: AgentHudSlotProps = {
   viz_type: fx.viz_type,

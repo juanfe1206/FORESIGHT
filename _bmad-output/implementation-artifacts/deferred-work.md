@@ -54,3 +54,9 @@
 - SSR/hydration risk from `useReducedMotionConfig` in "use client" components — pre-existing pattern project-wide; App Router "use client" directive constrains to client rendering.
 - `cx` variable used for both cx and cy SVG attributes in ScoreRing — misleading for non-square viewBox cases; not a correctness bug with current square layout.
 - Test timing assertions in `ScoreRing.test.tsx` are loose (no minimum delay check, some reduced-motion coverage is redundant) — acceptable for current MVP test coverage level.
+
+## Deferred from: code review of 5-4-network-view-fallback-visualization (2026-03-25)
+
+- Hub label text (8px) inside scaling `motion.g` in `NetworkView` may appear blurry on sub-retina displays — visual preference, not a spec violation; revisit in a UX polish pass.
+- `VizRenderErrorBoundary` `key` reset on `pathLabel`/`viz_type` change causes full animation entry replay in dev preview — intentional boundary reset design; acceptable at MVP.
+- `runCardClassLeft`/`runCardClassRight` extended via Tailwind string concatenation in `ThinSliceDemo` — class conflict risk if base class strings evolve; pre-existing project composition pattern, revisit if `cn()` utility is adopted project-wide.
