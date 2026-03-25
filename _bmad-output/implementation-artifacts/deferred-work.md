@@ -20,6 +20,17 @@
 - `ui-state.ts` omits optional reducer/event scaffolding noted in File Structure Guidance. Explicitly optional in spec; add when state complexity warrants it.
 - Error/fallback shells animate in/out inconsistently (outside `AnimatePresence`). Aesthetic only; no AC requires animation for skeletal error/fallback shells.
 
+## Deferred from: code review of 4-1-mode-badge-map-shell-integration (2026-03-24)
+
+- `VIZ_TYPES` runtime array in `ui-state.ts` duplicates the `VizType` union literals — drift risk if union extends; single authoritative source preferred.
+- `onSubmit` hardcodes `MOCK_BAKERY_MAP_FIXTURE.viz_type` without `isVizType` guard — typed TypeScript covers it now; guard warranted when real API response replaces the fixture in Epic 6.
+- Default context no-op setters for `setVizType` — silent failure when consuming outside a Provider; consider a dev-mode invariant or warning.
+- Tests don't assert `VizOrientationBand` presence in `dashboard` / `deepDive` stages — AC5 minimally satisfied; coverage gap is not a regression.
+- `page.tsx` re-exports `isVizType` / `VizType` from route module — widens public surface of a page entry point; revisit if import confusion arises.
+- `aria-live="polite"` on `ModeBadge` with `role="status"` — may generate noisy SR announcements if multiple badge instances appear in one render cycle; audit in a11y pass.
+- `VizMapSideCanvas` returns bare fragment for non-map modes — no reserved region; side-panel height jumps on viz switch. Intentional per AC3 scope (map-only); revisit in Epic 3/5 VizRouter work.
+- Dev `vizType` `<select>` options in `ThinSliceDemo` are hard-coded separately from `VIZ_TYPES` constant — could drift from the union; consolidate in a cleanup pass.
+
 ## Deferred from: code review of 1-4-parallel-integration-contract-ownership-boundaries (2026-03-25)
 
 - Slot mounting guide maps `running` to PanelSlots but `ThinSliceDemo.tsx` mounts via `SimulationShell` props directly. Guide is intentionally conceptual; Epic 5 devs will cross-reference `ThinSliceDemo.tsx` directly.
@@ -30,6 +41,12 @@
 - AC3 compliance (no "waiting for Epic 6" wording in `epics.md`) not verified within this diff; planning artifact outside the changeset.
 - Module-level fixture null-safety not guarded at runtime; TypeScript `satisfies SimulationResponse` provides compile-time coverage — no runtime issue expected.
 - Dual public names `MOCK_BAKERY_MAP_FIXTURE` / `MOCK_SIMULATION_RESPONSE` could cause import drift over time. Alias is intentional per spec; consider consolidating in a future cleanup pass.
+
+## Deferred from: code review of 2-1-simulate-api-route-scaffold-environment-wiring (2026-03-24)
+
+- Rate limiter `store` in `rate-limit.ts` accumulates Map entries for every unique IP that has ever made a request; old timestamps are evicted but the key is never removed. Memory grows proportionally to the number of unique IPs over the process lifetime. Acceptable for MVP/hackathon; revisit if a persistent rate-limit store (e.g. Redis) is added.
+- `x-forwarded-for` header can be forged by a client to rotate through arbitrary IPs and bypass per-IP rate limiting. Known limitation of header-based IP detection without a trusted-proxy layer. Acceptable for MVP; document in security posture notes if the product moves to production.
+- `decision` field is validated for non-empty *after trim* but stored in `SimulationRequest.data` untrimmed. Clients can send leading/trailing whitespace that passes validation. Will be fed as-is to LLM prompt construction in Story 2.2+; consider trimming the stored value in Story 2.2 when the field is first used.
 
 ## Deferred from: code review of 2-3-parallel-isolated-agent-execution (2026-03-25)
 
@@ -44,8 +61,32 @@
 - `progress` field in the live response is fully sourced from `MOCK_SIMULATION_RESPONSE` — agent_states always `["complete","complete","complete","complete"]` and `agents_per_path: 4` from fixture. Correct for a completed run but mock data leaking into production payload. Proper assembly deferred to Epic 6 streaming/progress story.
 - Unnecessary spread of `MOCK_SIMULATION_RESPONSE.paths.{A,B}` when building the live response — all three `PathData` fields (`agents`, `synthesis`, `kpis`) are explicitly overridden, making the spread dead weight. Consider removing the spread if `PathData` is confirmed to have no additional fields.
 
-## Deferred from: code review of 2-1-simulate-api-route-scaffold-environment-wiring (2026-03-24)
+## Deferred from: code review of 4-2-map-view-geographic-simulation-split-screen (2026-03-25)
 
-- Rate limiter `store` in `rate-limit.ts` accumulates Map entries for every unique IP that has ever made a request; old timestamps are evicted but the key is never removed. Memory grows proportionally to the number of unique IPs over the process lifetime. Acceptable for MVP/hackathon; revisit if a persistent rate-limit store (e.g. Redis) is added.
-- `x-forwarded-for` header can be forged by a client to rotate through arbitrary IPs and bypass per-IP rate limiting. Known limitation of header-based IP detection without a trusted-proxy layer. Acceptable for MVP; document in security posture notes if the product moves to production.
-- `decision` field is validated for non-empty *after trim* but stored in `SimulationRequest.data` untrimmed. Clients can send leading/trailing whitespace that passes validation. Will be fed as-is to LLM prompt construction in Story 2.2+; consider trimming the stored value in Story 2.2 when the field is first used.
+- Dashboard strip does not mount `MapHalf` (AC1 parenthetical). Explicitly deferred to Epic 5 per story scope notes; dashboard VizMapSideCanvas children are KPI cards until Epic 5.
+- `mapbox-gl` CSS imported in root layout ships Mapbox styles to every route. Next.js App Router limitation; story-specified import location per dev notes.
+- No explicit empty-token UX guard in `MapScene`. Error boundary catches Mapbox init failure gracefully; first-class empty-config UX deferred.
+- Customer dot positions are nondeterministic (unseeded `Math.random()`). Visual QA concern; MVP acceptable per story scope — geographic accuracy is explicitly out of scope.
+- `CashFlowTicker` is not an ARIA live region. Accessibility enhancement; not in story scope for MVP.
+- Test quality: timing-heavy assertions and mock coverage illusion. jsdom cannot run WebGL; mocking strategy is explicitly documented in story dev notes.
+- Hardcoded `€` and `/mo` currency/unit strings in `CashFlowTicker`. i18n not in MVP scope.
+- Fixed Madrid `CENTER` for both paths. Explicitly documented MVP limitation; path-specific geocoding is future work.
+- `MapErrorBoundary` has no retry or recovery path. Retry is Epic 6 / NFR-I1 territory per story notes.
+- `queueMicrotask` state updates may run after unmount during animation cleanup. React 18+ no-throw; low risk in practice.
+- `MapFallback` loading placeholder has `aria-hidden` hiding "Loading map…" from screen readers. Accessibility enhancement; not in story scope.
+- Redundant explicit `viz_type="map"` prop inside `vizType === "map"` branch in `ThinSliceDemo`. Style concern, not a logic bug; VizSlotProps requires the field.
+
+## Deferred from: code review of 4-3-deep-dive-panel-path-tabs-narrative-with-attribution (2026-03-25)
+
+- Fixed element IDs in `PathTabs` (`tab-path-a`, `panel-path-a`, etc.) break ARIA if more than one PathTabs mounts in a page. Low risk for current single-use, but non-unique IDs are technically invalid HTML.
+- Home/End keyboard navigation not handled in `PathTabs`. ARIA authoring practices recommend these keys for first/last tab; only ArrowLeft/ArrowRight are required by AC4.
+- No null guard on `AGENT_ROLES[viz_type]` in `getDriverSlotIndex` — TypeScript `VizType` union enforces valid keys at compile time; runtime risk only if types are violated.
+- No null guard on `driver` before `toLowerCase()` call — `drivers: string[]` type enforces non-null; runtime risk only if types are violated.
+- `DeepDiveStrip` applies both manual 120-char truncation and `line-clamp-4` — double truncation can interact awkwardly but is functionally belt-and-suspenders.
+- Score display hardcodes `"/ 100"` without clamping or validation — acceptable for mock phase; real integration should validate score range.
+- `expect(() => render()).not.toThrow()` is a weak test guard — many React failures surface as console errors rather than thrown exceptions.
+- `MOCK_DEEP_DIVE_PROPS` hardwired in `ThinSliceDemo` — no boundary between demo scaffolding and future real prop integration; intentional for this mock phase story.
+- No test for empty or missing `synthesis.timeline` — contract-compliant mock is always non-empty; real data edge case testing deferred to integration story.
+- Integration test in `ThinSliceDemo.test.tsx` relies on dev-only stage select control — dev tooling is by design for the thin slice demo.
+- `SLOT_BG` only covers indices 0–3; a `viz_type` with more than 4 agent roles would silently fall back to `bg-text-dim`.
+- Attribution dots use HTML `title` only — not reliably announced by all screen readers, but is within AC5 spec. Consider `aria-label` per dot in a future accessibility pass.

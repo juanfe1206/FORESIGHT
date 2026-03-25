@@ -1,15 +1,18 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { initialUiShellState, type UiRunStatus, type UiStage } from "./ui-state";
+import { initialUiShellState, type UiRunStatus, type UiStage, type VizType } from "./ui-state";
 
 export type UiShellContextValue = {
   uiStage: UiStage;
   runStatus: UiRunStatus;
+  vizType: VizType;
   /** Transition uiStage; prefer dispatching through the state machine rather than calling directly. */
   setUiStage: (stage: UiStage) => void;
   /** Transition runStatus; prefer dispatching through the state machine rather than calling directly. */
   setRunStatus: (status: UiRunStatus) => void;
+  /** Set visualization mode (mirrors simulation `viz_type`). */
+  setVizType: (viz: VizType) => void;
 };
 
 /**
@@ -21,6 +24,7 @@ export const UiShellContext = createContext<UiShellContextValue>({
   ...initialUiShellState,
   setUiStage: () => {},
   setRunStatus: () => {},
+  setVizType: () => {},
 });
 
 export function useUiShell(): UiShellContextValue {
