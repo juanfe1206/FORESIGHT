@@ -313,7 +313,8 @@ describe("POST /api/simulate", () => {
     expect(response.status).toBe(503);
     expect(json.status).toBe("error");
     expect(json.error.code).toBe("MISSING_CONFIG");
-    expect(json.error.recoverable).toBe(false);
+    expect(json.error.recoverable).toBe(true);
+    expect(json.recovery).toEqual({ canUseCache: true, fallbackViz: true });
   });
 
   it("returns 504 when classifier times out", async () => {

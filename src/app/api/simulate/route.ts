@@ -97,8 +97,9 @@ export async function POST(request: NextRequest): Promise<Response> {
       return createErrorResponse(
         "MISSING_CONFIG",
         "Server configuration is incomplete.",
-        false,
+        true,
         503,
+        CLASSIFY_RECOVERY,
       );
     }
 
