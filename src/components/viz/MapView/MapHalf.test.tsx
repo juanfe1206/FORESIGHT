@@ -11,7 +11,7 @@ describe("MapHalf", () => {
   it("renders with MOCK_VIZ_SLOT_PROPS_A and mock token without throwing", async () => {
     vi.stubEnv("NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN", "pk.test_mock_token");
     render(<MapHalf {...MOCK_VIZ_SLOT_PROPS_A} />);
-    expect(await screen.findByTestId("mock-map", { timeout: 8000 })).toBeInTheDocument();
+    expect(await screen.findByTestId("mock-map", {}, { timeout: 8000 })).toBeInTheDocument();
   });
 
   it("returns null when viz_type is not map", () => {
@@ -53,7 +53,7 @@ describe("CashFlowTicker via MapHalf", () => {
     async () => {
       vi.stubEnv("NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN", "pk.test");
       render(<MapHalf {...MOCK_VIZ_SLOT_PROPS_A} />);
-      await screen.findByTestId("mock-map", { timeout: 8000 });
+      await screen.findByTestId("mock-map", {}, { timeout: 8000 });
       await waitFor(
         () => {
           expect(screen.getByTestId("cash-flow-ticker").textContent).toMatch(/€\+12\/mo/);

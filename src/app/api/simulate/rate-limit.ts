@@ -1,5 +1,5 @@
 const WINDOW_MS = 60_000;
-const MAX_REQUESTS = 10;
+const MAX_REQUESTS = 30;
 const store = new Map<string, number[]>();
 
 export function checkRateLimit(ip: string): { allowed: boolean } {

@@ -94,6 +94,15 @@ export function ThinSliceDemo() {
   const [comparison, setComparison] = useState<SimulationResponse["comparison"] | null>(null);
   const [meta, setMeta] = useState<SimulationResponse["meta"] | null>(null);
 
+  // Build deep-dive props from live results when available; fall back to mock fixture.
+  const deepDiveProps = (synthesisResults && kpiResults && agentResults)
+    ? {
+        pathA: { agents: agentResults.A, synthesis: synthesisResults.A, kpis: kpiResults.A },
+        pathB: { agents: agentResults.B, synthesis: synthesisResults.B, kpis: kpiResults.B },
+        pathLabels: { A: pathLabels[0], B: pathLabels[1] },
+      }
+    : MOCK_DEEP_DIVE_PROPS;
+
   useEffect(() => {
     if (uiStage !== "running" || runStatus !== "inProgress") return;
     if (isApiCallRef.current) return;
@@ -132,7 +141,7 @@ export function ThinSliceDemo() {
 
         if (res.ok && json.path_labels?.A && json.path_labels?.B) {
           finalLabels = [json.path_labels.A, json.path_labels.B];
-          if (isVizType(json.viz_type)) setVizType(json.viz_type);
+          if (json.viz_type !== undefined && isVizType(json.viz_type)) setVizType(json.viz_type);
 
           const agentsA = json.paths?.A?.agents;
           const agentsB = json.paths?.B?.agents;
@@ -233,10 +242,8 @@ export function ThinSliceDemo() {
           data-viz-type={vizType}
         >
           <header className="border-b border-border px-6 py-4 lg:px-10">
-            <p className="font-heading text-caption uppercase tracking-wider text-text-dim">
-              FORESIGHT
-            </p>
-            <h1 className="font-heading text-h1 text-text">Simulation</h1>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="FORESIGHT" height={32} className="h-8 w-auto" />
           </header>
 
           {isDevPreviewEnabled && (
@@ -599,8 +606,8 @@ export function ThinSliceDemo() {
                         >
                           <DeepDiveStrip
                             pathLabel={pathLabels[0]}
-                            score={MOCK_DEEP_DIVE_PROPS.pathA.kpis.overallScore}
-                            summary={MOCK_DEEP_DIVE_PROPS.pathA.synthesis.summary}
+                            score={deepDiveProps.pathA.kpis.overallScore}
+                            summary={deepDiveProps.pathA.synthesis.summary}
                           />
                         </motion.div>
                       </VizMapSideCanvas>
@@ -615,7 +622,7 @@ export function ThinSliceDemo() {
                         transition={{ ...springTransition, delay: 0.05 }}
                         className="h-full min-h-0"
                       >
-                        <DeepDivePanel {...MOCK_DEEP_DIVE_PROPS} viz_type={vizType} />
+                        <DeepDivePanel {...deepDiveProps} viz_type={vizType} />
                       </motion.div>
                     </CenterPanelSlot>
                     <RightPanelSlot
@@ -631,8 +638,8 @@ export function ThinSliceDemo() {
                         >
                           <DeepDiveStrip
                             pathLabel={pathLabels[1]}
-                            score={MOCK_DEEP_DIVE_PROPS.pathB.kpis.overallScore}
-                            summary={MOCK_DEEP_DIVE_PROPS.pathB.synthesis.summary}
+                            score={deepDiveProps.pathB.kpis.overallScore}
+                            summary={deepDiveProps.pathB.synthesis.summary}
                           />
                         </motion.div>
                       </VizMapSideCanvas>

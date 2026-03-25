@@ -200,7 +200,7 @@ describe("ThinSliceDemo", () => {
     await user.click(screen.getByTestId("back-to-dashboard-btn"));
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard");
     expect(
-      screen.getByRole("region", { name: /mock comparison dashboard/i }),
+      screen.getByRole("region", { name: /comparison dashboard/i }),
     ).toBeInTheDocument();
   });
 
