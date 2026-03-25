@@ -1,4 +1,9 @@
+"use client";
+
+import { useMemo } from "react";
 import type { PathData } from "@/lib/types";
+import { FlowHalf } from "./FlowHalf";
+import { buildFlowVizModel } from "./flowVizModel";
 
 type FlowViewProps = {
   pathLabel: string;
@@ -6,20 +11,23 @@ type FlowViewProps = {
 };
 
 /**
- * Thin shell for flow visualization — Story 3.4 replaces body with full FlowView visuals.
+ * Flow mode resource allocation visualization (FR15) — data from PathData via flowVizModel.
  */
 export function FlowView({ pathLabel, pathData }: FlowViewProps) {
+  const model = useMemo(() => buildFlowVizModel(pathData), [pathData]);
+
   return (
     <div
       data-testid="viz-router-flow"
-      className="mt-3 flex min-h-24 flex-1 flex-col rounded-lg border border-dashed border-border/60 bg-bg/40 p-3"
+      className="mt-3 flex min-h-48 flex-1 flex-col rounded-lg border border-border/60 bg-bg/40 p-3"
       role="region"
-      aria-label={`Flow visualization for ${pathLabel}`}
+      aria-labelledby="flow-viz-title"
     >
-      <p className="text-caption text-text-dim">
-        Flow view — Story 3.4 will render the full diagram here.
-      </p>
-      <p className="mt-2 line-clamp-3 text-caption text-text">{pathData.synthesis.summary}</p>
+      <h2 id="flow-viz-title" className="sr-only">
+        Flow visualization for {pathLabel}
+      </h2>
+      <FlowHalf pathData={pathData} model={model} />
+      <p className="mt-2 line-clamp-3 text-caption text-text-dim">{pathData.synthesis.summary}</p>
     </div>
   );
 }

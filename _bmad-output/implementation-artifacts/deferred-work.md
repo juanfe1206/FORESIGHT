@@ -31,6 +31,14 @@
 - Module-level fixture null-safety not guarded at runtime; TypeScript `satisfies SimulationResponse` provides compile-time coverage — no runtime issue expected.
 - Dual public names `MOCK_BAKERY_MAP_FIXTURE` / `MOCK_SIMULATION_RESPONSE` could cause import drift over time. Alias is intentional per spec; consider consolidating in a future cleanup pass.
 
+## Deferred from: code review of 3-4-flow-view-resource-allocation-visualization (2026-03-25)
+
+- `<defs>` in `OutcomePool.tsx` is nested inside a `<g>` element rather than at the SVG root. Technically valid SVG but inconsistent with Safari's historical handling of `<defs>` inside groups. The `#outcome-fill` gradient should be hoisted into `FlowHalf`'s top-level `<defs>` block alongside `#flow-pipe-gradient`.
+- Gradient ids `flow-pipe-gradient` and `outcome-fill` are hard-coded strings shared across both `FlowHalf` SVGs rendered side-by-side. Today the gradients are identical so there is no visual bug, but the second definition silently wins. Apply a per-instance prefix via React 18 `useId()` before the two panels diverge visually.
+- `pipeSqueeze` is derived from raw `kpis.competitiveExposure` directly in `FlowHalf` rather than in `flowVizModel`. The divisor `200` is an unnamed magic number. Move into `buildFlowVizModel` (expose as `model.pipeSqueeze`) and add the constant to `FLOW_VIZ_SCALING` so it is unit-tested alongside all other KPI mappings.
+- `pathRefs` array literal in `FlowHalf` is recreated each render, invalidating the `useMemo` in `Particles` on every render. Wrap in `useMemo` in `FlowHalf` or accept a fixed-size tuple to make the dependency stable.
+- `particleFill` in `Particles.tsx` uses the magic number `145` (HSL hue for green) without a named constant. Extract as `const GREEN_HUE = 145` for readability.
+
 ## Deferred from: code review of 3-1-decision-form-context-fields (2026-03-25)
 
 - `inputClassName` Tailwind string is duplicated verbatim in both `ContextFields.tsx` and `DecisionForm.tsx`. No correctness issue; extract to a shared constant (e.g., `src/components/input/styles.ts`) in a future cleanup pass.
