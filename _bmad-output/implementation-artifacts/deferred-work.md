@@ -170,6 +170,14 @@
 - Circular `derivePathLabels` assertion in demo classifier test (`src/lib/classifier.test.ts`) — test imports and calls the same `derivePathLabels` function the classifier uses to compute expected path labels; assertion passes even if `derivePathLabels` has a regression; meaningful assertion is `mockCreate.not.toHaveBeenCalled()`.
 - `expectedVizType` field ambiguity for Demo 3 (`src/lib/demo-scenarios.ts`) — field correctly represents the classifier's output ("network") but the actual visible UI outcome for Demo 3 is "fallback" due to the forced timeout; no JSDoc comment bridges the gap for future maintainers.
 
+## Deferred from: code review of 7-1-map-only-distrito-data-overlay (2026-03-25)
+
+- `insightsByPath` truncation silently removed — previously truncated agent insights to 4 words; now passes full strings. Could cause layout overflow in AgentHUD or compact displays. Scope creep from refactor, not in story 7.1 tasks.
+- `MADRID_DISTRITOS` inline GeoJSON (21 distrito polygons with full coordinates) is statically imported into the client bundle via `MapScene.tsx`. Acceptable for MVP demo; consider async loading or a static JSON file for production.
+- `onLogoClick` button in `ThinSliceDemo.tsx` header has no `focus-visible` ring or outline style — keyboard users cannot see focus. Pre-existing from landing page story.
+- Submit while competitor fetch in-flight — user can click "Run Simulation" on wizard step 3 while competitor data is still loading, resulting in an empty `confirmedCompetitors` array. InputWizard scope (story 7.2).
+- Leaked promise on unmount in InputWizard — competitor fetch has no `AbortController`; if component unmounts or wizard resets while fetch is in-flight, state updates fire on unmounted component. InputWizard scope (story 7.2).
+
 ## Deferred from: code review of 6-2-cached-golden-replay-bounded-client-cache (2026-03-25)
 
 - Stale cache entries not compacted on read — `readLatestValid` filters TTL in-memory but never rewrites storage; expired blobs accumulate until next successful `writeSuccess`. Minor quota inefficiency, no correctness impact.

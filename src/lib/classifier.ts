@@ -37,27 +37,39 @@ export class ParseError extends Error {
 }
 
 const CLASSIFY_SYSTEM_PROMPT = `You are a business decision classifier. Given a business decision and context, you must:
-1. Extract the two distinct options being considered as path_a and path_b, using the user's exact wording where possible.
+1. Extract the two distinct options being considered as path_a and path_b, using the user's exact wording where possible. Each label should be a concise noun phrase (3-10 words).
 2. Classify the decision type as exactly one of: "map", "flow", or "network".
 
-Classification rules:
-- "map": decision involves location, geographic reach, local market, physical presence, territory, or place-based customers
-- "flow": decision involves budget, resource allocation, investment, capacity, cost, staffing, or time allocation
-- "network": decision involves partnerships, stakeholders, relationships, collaborations, or ecosystem dynamics
+Path extraction rules:
+- If the decision explicitly names two options (e.g., "X vs Y", "X or Y"), use those as path_a and path_b.
+- If only one option is stated (e.g., "Should I expand my cafe?"), infer path_a as the proposed action and path_b as the status quo or most natural alternative given the context.
+- path_a and path_b must be meaningfully different — not two phrasings of the same idea.
+
+Classification rules (in priority order — use the FIRST match):
+1. "map": decision primarily involves location, geographic reach, local market, physical presence, territory, or place-based customers
+2. "flow": decision primarily involves budget, resource allocation, investment, capacity, cost, staffing, time allocation, or operational changes
+3. "network": decision primarily involves partnerships, stakeholders, relationships, collaborations, supply chain, or ecosystem dynamics
+
+If the decision spans multiple categories (e.g., opening a location AND forming a partnership), classify by the dominant strategic dimension — whichever factor the decision-maker would weigh most heavily.
 
 Respond with a JSON object only. No explanation, no markdown, no surrounding text. Example:
-{"path_a": "Invest in Instagram ads", "path_b": "Partner with Cafe Central", "viz_type": "map"}`;
+{"path_a": "Invest in Instagram ads", "path_b": "Partner with Cafe Central", "viz_type": "flow"}`;
 
 const VALID_VIZ = new Set<VizType>(["map", "flow", "network"]);
 
 function buildUserPrompt(decision: string, context: SimulationRequest["context"]): string {
   const contextParts: string[] = [];
   if (context.industry) contextParts.push(`Industry: ${context.industry}`);
+  if (context.businessType) contextParts.push(`Business type: ${context.businessType}`);
   if (context.location) contextParts.push(`Location: ${context.location}`);
   if (context.customerBase) contextParts.push(`Customer base: ${context.customerBase}`);
   if (typeof context.monthlyRevenue === "number") {
     contextParts.push(`Monthly revenue: €${context.monthlyRevenue}`);
   }
+  if (typeof context.employeeCount === "number") {
+    contextParts.push(`Employees: ${context.employeeCount}`);
+  }
+  if (context.productsOrServices) contextParts.push(`Products/services: ${context.productsOrServices}`);
   if (context.details) contextParts.push(`Additional details: ${context.details}`);
 
   const contextBlock = contextParts.length > 0 ? `\n\nContext:\n${contextParts.join("\n")}` : "";

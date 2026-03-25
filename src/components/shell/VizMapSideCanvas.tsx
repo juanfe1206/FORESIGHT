@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
-import type { VizType } from "@/lib/types";
 
 type VizMapSideCanvasProps = {
   side: "left" | "right";
-  vizType: VizType;
   pathLabel?: string;
   children: ReactNode;
 };

@@ -129,6 +129,8 @@ async function navigateWizardAndSubmit(decision: string) {
   });
 }
 
+let matchMediaOriginal: typeof window.matchMedia | null = null;
+
 function stubReducedMotion() {
   const mql = {
     matches: true,
@@ -141,12 +143,12 @@ function stubReducedMotion() {
     dispatchEvent: vi.fn(),
   } satisfies MediaQueryList;
 
-  const original = window.matchMedia;
+  matchMediaOriginal = window.matchMedia;
   window.matchMedia = (query: string): MediaQueryList => {
     if (query === "(prefers-reduced-motion)" || query === "(prefers-reduced-motion: reduce)") {
       return mql;
     }
-    return original(query);
+    return matchMediaOriginal!(query);
   };
 }
 
@@ -162,6 +164,10 @@ describe("ThinSliceDemo", () => {
   });
 
   afterEach(() => {
+    if (matchMediaOriginal) {
+      window.matchMedia = matchMediaOriginal;
+      matchMediaOriginal = null;
+    }
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
     vi.useRealTimers();

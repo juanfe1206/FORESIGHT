@@ -1,8 +1,9 @@
 import OpenAI from "openai";
 import type { AgentOutput, KPIs, PathSynthesis, SimulationRequest } from "@/lib/types";
 
-const SYNTHESIS_SYSTEM_PROMPT = `You synthesize one simulation path for a side-by-side comparison dashboard.
-Return JSON only with this shape:
+const SYNTHESIS_SYSTEM_PROMPT = `You synthesize one simulation path for a side-by-side comparison dashboard. You will be called once per path — your job is to faithfully represent THIS path's strengths and weaknesses relative to the alternative.
+
+Return JSON only with this exact shape:
 {
   "summary": "string",
   "timeline": [{ "month": 1, "narrative": "string", "drivers": ["string"] }],
@@ -17,24 +18,36 @@ Return JSON only with this shape:
   }
 }
 
+Summary rules:
+- 1-3 sentences capturing the core strategic thesis of this path. Lead with the most important tradeoff.
+
 KPI definitions and scales:
-- revenueImpact: integer -100 to 100. Estimated % change in revenue vs current baseline if this path is chosen. Negative = decline. Anchor to the business context and agent confidence scores.
-- risk: integer 0 to 100. Overall risk score. Higher = riskier. Weight low-grounding agents and uncertainty signals heavily.
-- customerImpact: integer 0 to 100. How positively customers are affected. Higher = better.
-- operatingCosts: realistic monthly operating cost in the same currency/order-of-magnitude as the provided monthlyRevenue. Must be an absolute figure, not a percentage.
-- competitiveExposure: integer 0 to 100. How exposed this path leaves the business to competitive threats. Higher = more exposed.
-- overallScore: integer 0 to 100. Weighted composite: 30% revenueImpact_normalized + 25% (100 - risk) + 25% customerImpact + 20% (100 - competitiveExposure). Round to nearest integer.
-- opportunityCost: short sentence naming the specific upside this path sacrifices by not choosing the alternative.
+- revenueImpact: integer -100 to 100. Estimated % change in revenue vs current baseline if this path is chosen. Negative = decline. Anchor to the business context (monthlyRevenue, customer base size) and weight by agent confidence scores — low-confidence insights should pull the estimate toward 0.
+- risk: integer 0 to 100. Overall risk score. Higher = riskier. Weight low-grounding ("assumed") agent insights and uncertainty signals heavily. A path relying mostly on assumptions should score ≥60.
+- customerImpact: integer 0 to 100. How positively customers are affected. Higher = better. Consider acquisition, retention, satisfaction, and experience changes.
+- operatingCosts: realistic monthly operating cost in the same currency and order-of-magnitude as the provided monthlyRevenue. Must be an absolute €-figure, not a percentage. If monthlyRevenue is €14,500, operatingCosts should be in the thousands, not millions.
+- competitiveExposure: integer 0 to 100. How exposed this path leaves the business to competitive threats. Higher = more exposed. Consider defensibility, imitation risk, and competitor reaction speed.
+- overallScore: integer 0 to 100. Weighted composite calculated as: 30% × ((revenueImpact + 100) / 2) + 25% × (100 - risk) + 25% × customerImpact + 20% × (100 - competitiveExposure). Round to nearest integer.
+- opportunityCost: one concrete sentence naming the specific upside this path sacrifices by not choosing the alternative. Must reference something the alternative path distinctively offers.
 
 Differentiation rules (critical):
 - You are given this path label AND the alternative path label. Your KPIs must reflect the genuine tradeoffs between the two.
-- Each numeric KPI must be grounded in at least one specific agent insight from the provided outputs.
-- KPI values MUST differ materially from those of the alternative path. Identical or near-identical values across both paths indicate a failure to analyze the evidence.
-- opportunityCost must name a concrete advantage the alternative path has that this path does not.
+- Each numeric KPI must be grounded in at least one specific agent insight from the provided outputs. Mentally cite the agent role + insight that supports each score.
+- KPI values MUST differ meaningfully from what the alternative path would produce. Aim for at least 10-15 points of separation on most 0-100 KPIs. If both paths would score similarly on a metric, explain why in the summary.
+- opportunityCost must name a concrete advantage the alternative path has that this path does not — never a generic platitude.
 
-Other rules:
-- Timeline max 6 entries. Month must be integer 1..12.
-- Do not include markdown or any extra keys.`;
+Evidence weighting:
+- Agent insights with grounding="supplied" and confidence ≥0.7 are strong evidence — lean on them.
+- Agent insights with grounding="assumed" or confidence <0.4 are weak evidence — discount them and let their uncertainty increase your risk score.
+- If agents disagree, acknowledge the tension in your summary and let the lower-confidence view moderate your KPIs rather than ignoring it.
+
+Timeline rules:
+- 2-6 entries. Month must be integer 1..12.
+- Entries should be in chronological order.
+- Each narrative should describe a concrete event or milestone, not a vague phase label.
+- Drivers must reference at least one agent role whose insight supports that timeline entry.
+
+Do not include markdown, commentary, or any extra keys.`;
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
@@ -109,22 +122,32 @@ export interface SynthesizePathResult {
 function buildSynthesisPrompt(input: SynthesizePathInput): string {
   const contextLines: string[] = [];
   if (input.context.industry) contextLines.push(`Industry: ${input.context.industry}`);
+  if (input.context.businessType) contextLines.push(`Business type: ${input.context.businessType}`);
   if (input.context.location) contextLines.push(`Location: ${input.context.location}`);
   if (input.context.customerBase) contextLines.push(`Customer base: ${input.context.customerBase}`);
   if (typeof input.context.monthlyRevenue === "number") {
-    contextLines.push(`Monthly revenue: ${input.context.monthlyRevenue}`);
+    contextLines.push(`Monthly revenue: €${input.context.monthlyRevenue}`);
+  }
+  if (typeof input.context.employeeCount === "number") {
+    contextLines.push(`Employees: ${input.context.employeeCount}`);
+  }
+  if (input.context.productsOrServices) contextLines.push(`Products/services: ${input.context.productsOrServices}`);
+  if (input.context.confirmedCompetitors && input.context.confirmedCompetitors.length > 0) {
+    const names = input.context.confirmedCompetitors.map((c) => c.name).join(", ");
+    contextLines.push(`Known competitors nearby: ${names}`);
   }
   if (input.context.details) contextLines.push(`Details: ${input.context.details}`);
-  const contextBlock = contextLines.length > 0 ? `\nContext:\n${contextLines.join("\n")}` : "";
+  const contextBlock = contextLines.length > 0 ? `\nBusiness context:\n${contextLines.join("\n")}` : "";
   const agentLines = input.agents
     .map((agent, index) => {
-      return `${index + 1}. role="${agent.role}" confidence=${agent.confidence} grounding=${agent.grounding}\ninsight="${agent.insight}"`;
+      return `${index + 1}. role="${agent.role}" confidence=${agent.confidence} grounding=${agent.grounding}\n   insight="${agent.insight}"`;
     })
     .join("\n");
 
   return `THIS path label: ${input.pathLabel}
 ALTERNATIVE path label: ${input.alternativePathLabel}
-(Produce KPIs that reflect the genuine differences between these two paths.)${contextBlock}
+(Produce KPIs that reflect the genuine differences between these two paths. Each KPI must be traceable to at least one agent insight below.)${contextBlock}
+
 Agent outputs for THIS path:
 ${agentLines}`;
 }
@@ -225,7 +248,7 @@ export async function synthesizePath(input: SynthesizePathInput): Promise<Synthe
         ],
         response_format: { type: "json_object" },
         max_tokens: 800,
-        temperature: 0.7,
+        temperature: 0.5,
       },
       { signal: AbortSignal.timeout(input.timeoutMs) },
     );

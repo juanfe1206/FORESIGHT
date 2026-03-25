@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { VizMapSideCanvas } from "./VizMapSideCanvas";
 
 describe("VizMapSideCanvas", () => {
-  it("reserves left/right regions with stable test ids when vizType is map", () => {
+  it("reserves left/right regions with stable test ids", () => {
     const { rerender } = render(
-      <VizMapSideCanvas side="left" vizType="map">
+      <VizMapSideCanvas side="left">
         <span>inner</span>
       </VizMapSideCanvas>,
     );
@@ -13,16 +13,16 @@ describe("VizMapSideCanvas", () => {
     expect(screen.getByText("inner")).toBeInTheDocument();
 
     rerender(
-      <VizMapSideCanvas side="right" vizType="map">
+      <VizMapSideCanvas side="right">
         <span>inner</span>
       </VizMapSideCanvas>,
     );
     expect(screen.getByTestId("map-canvas-region-right")).toBeInTheDocument();
   });
 
-  it("always wraps children with map canvas regardless of vizType (map-only pivot)", () => {
+  it("always wraps children with map canvas styling", () => {
     render(
-      <VizMapSideCanvas side="left" vizType="flow">
+      <VizMapSideCanvas side="left">
         <span data-testid="child">content</span>
       </VizMapSideCanvas>,
     );

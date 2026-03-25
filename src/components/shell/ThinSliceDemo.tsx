@@ -56,6 +56,7 @@ import { CenterPanelSlot, LeftPanelSlot, RightPanelSlot } from "./PanelSlots";
 import { SimulationShell } from "./SimulationShell";
 import { SimulationFramingBanner } from "@/components/trust/SimulationFramingBanner";
 import { VizMapSideCanvas } from "./VizMapSideCanvas";
+import { summarizeGroundingDistribution } from "@/lib/format-agent-output";
 import { buildHydrationFromSimulationResponse } from "@/lib/hydrate-simulation-ui";
 import { GOLDEN_DEMO_SIMULATION_RESPONSE } from "@/lib/golden/golden-demo-simulation-response";
 import { parseSimulationErrorResponse } from "@/lib/parse-simulation-error-response";
@@ -169,7 +170,7 @@ export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoP
       productsOrServices: s.productsOrServices ?? "",
     });
     setPreloadedCompetitors(s.confirmedCompetitors ?? null);
-    setWizardInitialStep(0);
+    setWizardInitialStep(3);
     setActiveDemoScenarioId(id);
   }, []);
 
@@ -396,6 +397,10 @@ export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoP
   );
 
   const resetToInput = useCallback(() => {
+    if (replayTimeoutRef.current !== null) {
+      window.clearTimeout(replayTimeoutRef.current);
+      replayTimeoutRef.current = null;
+    }
     setUiStage("input");
     setRunStatus("idle");
     setForm(emptyWizardState);
@@ -650,7 +655,7 @@ export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoP
                     centerAriaLabel="Agent HUD and progress slot"
                     rightAriaLabel={`${pathLabels[1]} visualization`}
                     left={
-                      <VizMapSideCanvas side="left" vizType={vizType} pathLabel={pathLabels[0]}>
+                      <VizMapSideCanvas side="left" pathLabel={pathLabels[0]}>
                         <MapHalf
                           viz_type={vizType}
                           pathData={pathDataA}
@@ -678,7 +683,7 @@ export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoP
                       </motion.article>
                     }
                     right={
-                      <VizMapSideCanvas side="right" vizType={vizType} pathLabel={pathLabels[1]}>
+                      <VizMapSideCanvas side="right" pathLabel={pathLabels[1]}>
                         <MapHalf
                           viz_type={vizType}
                           pathData={pathDataB}
@@ -710,12 +715,13 @@ export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoP
                       className="order-1 lg:order-1"
                     >
                       <motion.div {...panelMotion} transition={springTransition} className="h-full">
-                        <VizMapSideCanvas side="left" vizType={vizType} pathLabel={pathLabels[0]}>
+                        <VizMapSideCanvas side="left" pathLabel={pathLabels[0]}>
                           <PathSummaryCard
                             pathLabel={pathLabels[0]}
                             pathId="A"
                             accentClass="text-accent"
                             summary={pathDataA.synthesis.summary}
+                            groundingSummary={summarizeGroundingDistribution(pathDataA.agents, pathLabels[0])}
                             footer={
                               <ScoreRing
                                 score={kpiStackProps.kpisA.overallScore}
@@ -792,12 +798,13 @@ export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoP
                         transition={{ ...springTransition, delay: 0.1 }}
                         className="h-full"
                       >
-                        <VizMapSideCanvas side="right" vizType={vizType} pathLabel={pathLabels[1]}>
+                        <VizMapSideCanvas side="right" pathLabel={pathLabels[1]}>
                           <PathSummaryCard
                             pathLabel={pathLabels[1]}
                             pathId="B"
                             accentClass="text-blue"
                             summary={pathDataB.synthesis.summary}
+                            groundingSummary={summarizeGroundingDistribution(pathDataB.agents, pathLabels[1])}
                             footer={
                               <ScoreRing
                                 score={kpiStackProps.kpisB.overallScore}
@@ -849,7 +856,7 @@ export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoP
                       aria-label="Deep dive compressed Path A strip"
                       className="min-h-24 rounded-xl border border-border bg-surface p-3 lg:min-h-auto"
                     >
-                      <VizMapSideCanvas side="left" vizType={vizType} pathLabel={pathLabels[0]}>
+                      <VizMapSideCanvas side="left" pathLabel={pathLabels[0]}>
                         <motion.div
                           initial={{ opacity: 0, x: -8 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -881,7 +888,7 @@ export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoP
                       aria-label="Deep dive compressed Path B strip"
                       className="min-h-24 rounded-xl border border-border bg-surface p-3 lg:min-h-auto"
                     >
-                      <VizMapSideCanvas side="right" vizType={vizType} pathLabel={pathLabels[1]}>
+                      <VizMapSideCanvas side="right" pathLabel={pathLabels[1]}>
                         <motion.div
                           initial={{ opacity: 0, x: 8 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -926,12 +933,14 @@ function PathSummaryCard({
   pathId,
   accentClass,
   summary,
+  groundingSummary,
   footer,
 }: {
   pathLabel: string;
   pathId: "A" | "B";
   accentClass: string;
   summary: string;
+  groundingSummary?: string | null;
   footer?: ReactNode;
 }) {
   return (
@@ -939,6 +948,9 @@ function PathSummaryCard({
       <h3 className={`font-heading text-h3 ${accentClass}`}>{pathLabel}</h3>
       <p className="text-caption text-text-dim">Path {pathId}</p>
       <p className="mt-4 flex-1 text-body leading-snug text-text">{summary}</p>
+      {groundingSummary ? (
+        <p className="mt-2 text-caption leading-snug text-text-dim">{groundingSummary}</p>
+      ) : null}
       {footer ? (
         <div className="mt-6 flex shrink-0 flex-col items-center border-t border-border/50 pt-4">
           {footer}

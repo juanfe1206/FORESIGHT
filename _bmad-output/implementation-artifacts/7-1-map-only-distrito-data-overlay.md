@@ -1,6 +1,6 @@
 # Story 7.1: Map-Only Viz + Madrid Distrito Data Overlay
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -148,6 +148,24 @@ These are approximate — suitable for a demo visualization, not authoritative s
 - [Source: `src/components/viz/MapView/MapScene.tsx` — existing map implementation]
 - [Source: `src/components/viz/VizRouter.tsx` — existing viz routing]
 - [Source: `src/components/shell/ThinSliceDemo.tsx` — shell stage rendering]
+
+### Review Findings
+
+- [x] [Review][Patch] **F1: Path A/B share same map center — Malasaña coordinates missing** — AC #2 requires Path A → Malasaña (40.4276, -3.7038) and Path B → Sol (40.4167, -3.7004). Add CENTER_A/CENTER_B constants; use pathTone to select default center when no submittedLocation is provided. [MapScene.tsx, ThinSliceDemo.tsx]
+- [x] [Review][Dismiss] **F2: VizRouter orphaned from rendering path** — Accepted: direct MapHalf rendering is simpler; VizRouter update sufficient for AC compliance.
+- [x] [Review][Patch] **F3: Grounding distribution summary removed from dashboard** — Restore grounding distribution info to PathSummaryCard. [ThinSliceDemo.tsx]
+- [x] [Review][Patch] **F4: `CENTER` object defeats useMemo — fresh object every render** [MapScene.tsx:84-98]
+- [x] [Review][Patch] **F5: Duplicate Mapbox Source IDs collide when `reuseMaps` enabled** [MapScene.tsx:236-298]
+- [x] [Review][Patch] **F6: `stubReducedMotion` leaks across tests — no afterEach cleanup** [ThinSliceDemo.test.tsx:132-151]
+- [x] [Review][Patch] **F7: `vizType` dead prop in VizMapSideCanvas — declared but never read** [VizMapSideCanvas.tsx:6]
+- [x] [Review][Patch] **F8: Duplicate React keys when competitors share lat/lng** [MapScene.tsx:322]
+- [x] [Review][Patch] **F9: Stale replay timeout fires after `resetToInput`** [ThinSliceDemo.tsx:398-413]
+- [x] [Review][Patch] **F10: `MADRID_DISTRITOS as GeoJSON.FeatureCollection` unsafe downcast** [MapScene.tsx:236]
+- [x] [Review][Defer] **F11: `insightsByPath` truncation silently removed** [ThinSliceDemo.tsx] — deferred, scope creep from refactor
+- [x] [Review][Defer] **F12: MADRID_DISTRITOS inline GeoJSON in client bundle** [madrid-distritos.ts] — deferred, acceptable for MVP demo
+- [x] [Review][Defer] **F13: `onLogoClick` button missing focus indicator** [ThinSliceDemo.tsx:464] — deferred, pre-existing from landing page story
+- [x] [Review][Defer] **F14: Submit while competitor fetch in-flight** [InputWizard] — deferred, story 7.2 scope
+- [x] [Review][Defer] **F15: Leaked promise on unmount in InputWizard** [InputWizard] — deferred, story 7.2 scope
 
 ## Change Log
 

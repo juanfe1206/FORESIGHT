@@ -10,7 +10,8 @@ import { CashFlowTicker } from "./CashFlowTicker";
 type PointFeature = GeoJSON.Feature<GeoJSON.Point, { id: number }>;
 type FeatureCollectionPoints = GeoJSON.FeatureCollection<GeoJSON.Point>;
 
-const DEFAULT_CENTER = { lng: -3.7004, lat: 40.4167 };
+const CENTER_A = { lng: -3.7038, lat: 40.4276 }; // Malasaña
+const CENTER_B = { lng: -3.7004, lat: 40.4167 }; // Puerta del Sol
 
 const COMPETITOR_OFFSETS: readonly [number, number][] = [
   [0.007, 0.004],
@@ -72,16 +73,19 @@ function easeInOut(t: number): number {
 export type MapSceneProps = {
   pathData: PathData;
   pathLabel: string;
-  /** Visual color tint — "A" uses accent, "B" uses blue. Does NOT affect map center. */
+  /** Color tint ("A" = accent, "B" = blue) and default map center (A = Malasaña, B = Sol). */
   pathTone?: "A" | "B";
-  /** Single center for the map. Both paths share the user's confirmed location. */
+  /** Override center for the map. Falls back to pathTone-based default (A → Malasaña, B → Sol). */
   center?: { lat: number; lng: number };
   /** Real competitor positions from Overpass; when provided, replaces COMPETITOR_OFFSETS. */
   confirmedCompetitors?: Array<{ name: string; lat: number; lng: number }>;
 };
 
 export function MapScene({ pathData, pathLabel, pathTone = "B", center, confirmedCompetitors }: MapSceneProps) {
-  const CENTER = center ?? DEFAULT_CENTER;
+  const CENTER = useMemo(
+    () => center ?? (pathTone === "A" ? CENTER_A : CENTER_B),
+    [center?.lat, center?.lng, pathTone],
+  );
   const reduceMotion = useReducedMotion() ?? false;
   const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ?? "";
 
@@ -233,9 +237,9 @@ export function MapScene({ pathData, pathLabel, pathTone = "B", center, confirme
         reuseMaps
         onIdle={onMapIdle}
       >
-        <Source id="distritos" type="geojson" data={MADRID_DISTRITOS as GeoJSON.FeatureCollection}>
+        <Source id={`distritos-${pathTone}`} type="geojson" data={MADRID_DISTRITOS}>
           <Layer
-            id="distritos-fill"
+            id={`distritos-fill-${pathTone}`}
             type="fill"
             paint={{
               "fill-color": [
@@ -250,7 +254,7 @@ export function MapScene({ pathData, pathLabel, pathTone = "B", center, confirme
             }}
           />
           <Layer
-            id="distritos-line"
+            id={`distritos-line-${pathTone}`}
             type="line"
             paint={{
               "line-color": "rgba(148, 163, 184, 0.5)",
@@ -259,9 +263,9 @@ export function MapScene({ pathData, pathLabel, pathTone = "B", center, confirme
           />
         </Source>
 
-        <Source id="customers" type="geojson" data={customerData}>
+        <Source id={`customers-${pathTone}`} type="geojson" data={customerData}>
           <Layer
-            id="customers-circles"
+            id={`customers-circles-${pathTone}`}
             type="circle"
             paint={{
               "circle-radius": 4,
@@ -271,9 +275,9 @@ export function MapScene({ pathData, pathLabel, pathTone = "B", center, confirme
           />
         </Source>
 
-        <Source id="heat" type="geojson" data={heatData}>
+        <Source id={`heat-${pathTone}`} type="geojson" data={heatData}>
           <Layer
-            id="heat-layer"
+            id={`heat-layer-${pathTone}`}
             type="heatmap"
             paint={{
               "heatmap-weight": heatIntensity,
@@ -319,7 +323,7 @@ export function MapScene({ pathData, pathLabel, pathTone = "B", center, confirme
         </Marker>
 
         {competitorPositions.map((pos, i) => (
-          <Marker key={`${pos.lng}-${pos.lat}`} longitude={pos.lng} latitude={pos.lat} anchor="center">
+          <Marker key={`competitor-${pathTone}-${i}-${pos.lng}-${pos.lat}`} longitude={pos.lng} latitude={pos.lat} anchor="center">
             <motion.div
               className="flex flex-col items-center"
               style={{ opacity: competitorOpacity }}
