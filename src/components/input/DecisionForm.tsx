@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useCallback, useId, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useId, useState } from "react";
 import type { SimulationRequest } from "@/lib/types";
 import { GlowButton } from "@/components/shared/GlowButton";
 import {
@@ -32,6 +32,8 @@ type DecisionFormProps = {
   onValidSubmit: (payload: { decision: string; context: SimulationRequest["context"] }) => void;
   /** When true, CTA shows loading and is disabled (valid submit path only). */
   isSubmitting?: boolean;
+  /** Optional trust / simulation copy after the submit control (e.g. FR29 banner). */
+  formFooter?: ReactNode;
 };
 
 export function DecisionForm({
@@ -39,6 +41,7 @@ export function DecisionForm({
   onChange,
   onValidSubmit,
   isSubmitting = false,
+  formFooter,
 }: DecisionFormProps) {
   const decisionErrorId = useId();
   const revenueErrorId = useId();
@@ -127,6 +130,7 @@ export function DecisionForm({
       >
         Simulate My Decision
       </GlowButton>
+      {formFooter != null ? <div className="mt-4">{formFooter}</div> : null}
     </form>
   );
 }

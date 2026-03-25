@@ -28,6 +28,7 @@ export function AgentHUD({
   pathLabels,
   agentStatesByPath,
   insightsByPath,
+  agentsByPath,
 }: AgentHudSlotProps) {
   void _vizType;
   const [liveAnnouncement, setLiveAnnouncement] = useState("");
@@ -81,6 +82,7 @@ export function AgentHUD({
           const full = pathLabels[pathId];
           const states = agentStatesByPath[pathId];
           const insights = insightsByPath?.[pathId];
+          const agents = agentsByPath?.[pathId];
           return (
             <section
               key={pathId}
@@ -95,17 +97,22 @@ export function AgentHUD({
                 <span className="text-accent">{full}</span>
               </h3>
               <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-                {[0, 1, 2, 3].map((i) => (
-                  <AgentNode
-                    key={`${pathId}-${i}`}
-                    pathId={pathId}
-                    slotIndex={i}
-                    role={roles[i] ?? `Agent ${i + 1}`}
-                    state={states[i] ?? "dormant"}
-                    insight={insights?.[i]}
-                    pathLabelFull={full}
-                  />
-                ))}
+                {[0, 1, 2, 3].map((i) => {
+                  const agentRow = agents?.[i];
+                  return (
+                    <AgentNode
+                      key={`${pathId}-${i}`}
+                      pathId={pathId}
+                      slotIndex={i}
+                      role={roles[i] ?? `Agent ${i + 1}`}
+                      state={states[i] ?? "dormant"}
+                      insight={insights?.[i]}
+                      confidence={agentRow?.confidence}
+                      grounding={agentRow?.grounding}
+                      pathLabelFull={full}
+                    />
+                  );
+                })}
               </div>
             </section>
           );

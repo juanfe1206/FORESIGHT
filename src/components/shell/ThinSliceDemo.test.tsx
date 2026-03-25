@@ -8,6 +8,7 @@ import { AGENT_ROLES } from "@/lib/types";
 import type { SimulationResponse } from "@/lib/types";
 import { __simulationCacheTestUtils } from "@/lib/simulation-client-cache";
 import { validateSimulationResponse } from "@/lib/validate-simulation-response";
+import { SIMULATION_FRAMING_BANNER_TEST_ID } from "@/components/trust/SimulationFramingBanner";
 
 const mockFetch = vi.fn();
 
@@ -112,6 +113,9 @@ describe("ThinSliceDemo", () => {
     expect(root).toHaveAttribute("data-ui-stage", "input");
     expect(root).toHaveAttribute("data-run-status", "idle");
     expect(screen.getByRole("region", { name: /decision input/i })).toBeInTheDocument();
+    expect(screen.getByTestId(SIMULATION_FRAMING_BANNER_TEST_ID)).toHaveTextContent(
+      /personalized professional advice/i,
+    );
   });
 
   it("submit transitions synchronously to submitting before microtask advances to inProgress", () => {
@@ -150,6 +154,12 @@ describe("ThinSliceDemo", () => {
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard");
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "completed");
     expect(screen.getByText(/overall winner/i)).toBeInTheDocument();
+    expect(screen.getByTestId(SIMULATION_FRAMING_BANNER_TEST_ID)).toHaveTextContent(
+      /simulated consequences/i,
+    );
+    expect(screen.getByTestId(SIMULATION_FRAMING_BANNER_TEST_ID)).toHaveTextContent(
+      /not guaranteed forecasts/i,
+    );
   });
 
   it("shows running stage with three-panel slots via dev panel", async () => {

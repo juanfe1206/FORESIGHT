@@ -48,3 +48,9 @@ Panel regions come from `PanelSlots.tsx` (`LeftPanelSlot`, `CenterPanelSlot`, `R
 | `input` | Not used (Epic 3: full-width form elsewhere) | Not used | Not used |
 
 Shell state access: `import { useUiShell } from "@/lib/ui-shell-context"`.
+
+## Client/UI transparency (Story 6.3 — FR28, FR29, UX-DR17)
+
+- **FR28 — confidence & grounding:** Any UI that reflects a completed `AgentOutput` (notably `AgentHUD` / `AgentNode` while agents are in `insight` or `complete`) should surface **`confidence`** (0–1, shown as an explicit percentage or equivalent) and **`grounding`** (`supplied` | `mixed` | `assumed`) from the response. Helpers: `formatConfidencePercent`, `formatAgentGroundingLabel` in `src/lib/format-agent-output.ts`. Optional `AgentHudSlotProps.agentsByPath` supplies structured rows in parallel with legacy `insightsByPath`.
+- **FR29 — non-advice framing:** The comparison dashboard center column includes **`SimulationFramingBanner`** (or equivalent copy) so users see that outputs are **simulated consequences**, **not** guaranteed forecasts, **not** personalized professional advice, and **not** promises of outcomes. The decision **input** stage surfaces the same message near the submit control (`DecisionForm.formFooter`). Copy must remain consistent with **cached replay / fallback** messaging (`runStatus === "fallback"`, `meta.cachedReplay`) — simulation wording still applies to saved or bundled replays.
+- **UX-DR17 — not color-only:** Grounding and confidence cues MUST include **visible text and/or non-hue icons** (plus optional accent color). Screen readers get explicit strings via node labels / microcopy, not hue alone.

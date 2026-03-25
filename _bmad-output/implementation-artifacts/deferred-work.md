@@ -156,6 +156,15 @@
 - `agents_per_path: 4` hardcoded in `route.ts` — not derived from actual agent count (`agentRun.agentsByPath.A.length`). In production AGENT_ROLES always yields 4 roles per viz type so it's always correct; but fragile if role counts ever change. Fix would be `agents_per_path: agentRun.agentsByPath.A.length`.
 - `...MOCK_SIMULATION_RESPONSE` top-level spread in `route.ts` is now dead code — all `SimulationResponse` fields are explicitly overridden after it. Pre-existing pattern; harmless. Remove in a dedicated cleanup refactor.
 
+## Deferred from: code review of 6-3-transparency-confidence-non-advice-framing (2026-03-25)
+
+- Unicode geometric symbols (●/◐/○) may render inconsistently in sparse font environments (`AgentNode.tsx`). Pre-existing choice; acceptable for MVP — revisit in a dedicated visual QA or icon-system pass.
+- Raw `ℹ` unicode icon in `SimulationFramingBanner` may render as tofu in some environments. Consider using an SVG icon from the project's existing icon set in a future polish pass.
+- `integration-contracts.md` content can drift from code — no automated check ties doc strings to exports or tests. Acceptable for MVP; address with doc-testing tooling if contract docs become high-stakes.
+- `AgentHUD.test.tsx` coverage is narrow — no `complete` state, `assumed`/`mixed` grounding label, or legacy `insightsByPath`-only regression test. Extend in a dedicated test-coverage pass.
+- Agent slot count always assumed to be exactly 4 in `AgentHUD`; mismatched `agents` arrays produce silent trust gaps or drop agents. Pre-existing architecture constraint; revisit if agent counts become dynamic.
+- `AgentHUD` `useEffect` live region dep array omits `insightsByPath`/`agentsByPath` — changes to those props alone won't recompute the accessible announcement. Pre-existing pattern from Story 5.1; narrow impact; address in a dedicated a11y pass.
+
 ## Deferred from: code review of 6-2-cached-golden-replay-bounded-client-cache (2026-03-25)
 
 - Stale cache entries not compacted on read — `readLatestValid` filters TTL in-memory but never rewrites storage; expired blobs accumulate until next successful `writeSuccess`. Minor quota inefficiency, no correctness impact.

@@ -1,4 +1,4 @@
-import type { AgentState, KPIs, PathData, SimulationResponse, VizType } from "./types";
+import type { AgentOutput, AgentState, KPIs, PathData, SimulationResponse, VizType } from "./types";
 import { AGENT_ROLES } from "./types";
 import { MOCK_BAKERY_MAP_FIXTURE } from "./mock-fixture";
 
@@ -33,6 +33,8 @@ export interface AgentHudSlotProps {
   pathLabels: { A: string; B: string };
   agentStatesByPath: { A: AgentState[]; B: AgentState[] };
   insightsByPath?: { A: (string | undefined)[]; B: (string | undefined)[] };
+  /** When set, HUD nodes in `insight` / `complete` show `confidence` + `grounding` from each slot. */
+  agentsByPath?: { A: AgentOutput[]; B: AgentOutput[] };
 }
 
 /**

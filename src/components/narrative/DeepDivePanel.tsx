@@ -1,7 +1,8 @@
 "use client";
 
-import { AGENT_ROLES, type VizType } from "@/lib/types";
 import type { DeepDivePanelSlotProps } from "@/lib/integration-contracts";
+import { summarizeGroundingDistribution } from "@/lib/format-agent-output";
+import { AGENT_ROLES, type PathData, type VizType } from "@/lib/types";
 import { NarrativeBlock } from "./NarrativeBlock";
 import { PathTabs } from "./PathTabs";
 
@@ -23,6 +24,42 @@ function driverBgClass(driver: string, viz_type: VizType): string {
   return SLOT_BG[idx] ?? "bg-text-dim";
 }
 
+function PathNarrativeColumn({
+  pathData,
+  pathLabel,
+  viz_type,
+}: {
+  pathData: PathData;
+  pathLabel: string;
+  viz_type: VizType;
+}) {
+  const groundLine = summarizeGroundingDistribution(pathData.agents, pathLabel);
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="space-y-1 border-b border-border pb-3">
+        <p className="text-caption text-text-dim">
+          Timeline narratives are simulation-derived scenarios—they are not guaranteed outcomes.
+        </p>
+        {groundLine ? (
+          <p className="text-caption text-text-dim" data-testid="deep-dive-grounding-summary">
+            {groundLine}
+          </p>
+        ) : null}
+      </div>
+      <p className="text-body text-text-dim">{pathData.synthesis.summary}</p>
+      {pathData.synthesis.timeline.map((entry, i) => (
+        <NarrativeBlock
+          key={`${entry.month}-${i}`}
+          month={entry.month}
+          narrative={entry.narrative}
+          drivers={entry.drivers}
+          getDriverBgClass={(d) => driverBgClass(d, viz_type)}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function DeepDivePanel({
   pathA,
   pathB,
@@ -34,32 +71,10 @@ export function DeepDivePanel({
       labelA={pathLabels.A}
       labelB={pathLabels.B}
       panelA={
-        <div className="flex flex-col gap-4">
-          <p className="text-body text-text-dim">{pathA.synthesis.summary}</p>
-          {pathA.synthesis.timeline.map((entry, i) => (
-            <NarrativeBlock
-              key={`${entry.month}-${i}`}
-              month={entry.month}
-              narrative={entry.narrative}
-              drivers={entry.drivers}
-              getDriverBgClass={(d) => driverBgClass(d, viz_type)}
-            />
-          ))}
-        </div>
+        <PathNarrativeColumn pathData={pathA} pathLabel={pathLabels.A} viz_type={viz_type} />
       }
       panelB={
-        <div className="flex flex-col gap-4">
-          <p className="text-body text-text-dim">{pathB.synthesis.summary}</p>
-          {pathB.synthesis.timeline.map((entry, i) => (
-            <NarrativeBlock
-              key={`${entry.month}-${i}`}
-              month={entry.month}
-              narrative={entry.narrative}
-              drivers={entry.drivers}
-              getDriverBgClass={(d) => driverBgClass(d, viz_type)}
-            />
-          ))}
-        </div>
+        <PathNarrativeColumn pathData={pathB} pathLabel={pathLabels.B} viz_type={viz_type} />
       }
     />
   );

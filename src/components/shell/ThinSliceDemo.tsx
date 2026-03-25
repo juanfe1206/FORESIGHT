@@ -54,6 +54,8 @@ import { MapHalf } from "@/components/viz/MapView";
 import { ModeBadge } from "@/components/running/ModeBadge";
 import { CenterPanelSlot, LeftPanelSlot, RightPanelSlot } from "./PanelSlots";
 import { SimulationShell } from "./SimulationShell";
+import { SimulationFramingBanner } from "@/components/trust/SimulationFramingBanner";
+import { summarizeGroundingDistribution } from "@/lib/format-agent-output";
 import { VizMapSideCanvas } from "./VizMapSideCanvas";
 import { buildHydrationFromSimulationResponse } from "@/lib/hydrate-simulation-ui";
 import { GOLDEN_DEMO_SIMULATION_RESPONSE } from "@/lib/golden/golden-demo-simulation-response";
@@ -536,6 +538,7 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                     onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
                     onValidSubmit={onValidSubmit}
                     isSubmitting={runStatus === "submitting"}
+                    formFooter={<SimulationFramingBanner />}
                   />
                 </motion.section>
               )}
@@ -594,6 +597,7 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                           pathLabels={hudPathLabels}
                           agentStatesByPath={agentStatesByPath}
                           insightsByPath={insightsByPath}
+                          agentsByPath={{ A: pathDataA.agents, B: pathDataB.agents }}
                         />
                       </motion.article>
                     }
@@ -670,6 +674,7 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                             pathData={pathDataA}
                             score={kpiStackProps.kpisA.overallScore}
                             agentStates={agentStatesByPath.A}
+                            agents={pathDataA.agents}
                           />
                         )}
                       </motion.div>
@@ -684,6 +689,7 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                         className="rounded-xl border border-border bg-surface p-4 sm:p-6"
                       >
                         <KpiStack {...kpiStackProps} />
+                        <SimulationFramingBanner className="mt-4" isReplay={meta?.cachedReplay === true} />
                         {comparison && (
                           <div className="mt-4 flex flex-col items-center gap-2 border-t border-border pt-4">
                             <p className="text-caption text-text-dim">Overall winner</p>
@@ -763,6 +769,7 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                             pathData={pathDataB}
                             score={kpiStackProps.kpisB.overallScore}
                             agentStates={agentStatesByPath.B}
+                            agents={pathDataB.agents}
                           />
                         )}
                       </motion.div>
@@ -887,6 +894,7 @@ function VizResultCard({
   pathData,
   score,
   agentStates,
+  agents,
 }: {
   pathLabel: string;
   pathId: "A" | "B";
@@ -895,7 +903,10 @@ function VizResultCard({
   pathData: PathData;
   score: number;
   agentStates: AgentState[];
+  /** When provided, shows a grounding distribution summary for FR28 (AC1). */
+  agents?: AgentOutput[];
 }) {
+  const groundLine = agents ? summarizeGroundingDistribution(agents, pathLabel) : null;
   return (
     <div className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-surface p-4">
       <h3 className={`shrink-0 font-heading text-h3 ${accentClass}`}>{pathLabel}</h3>
@@ -908,6 +919,11 @@ function VizResultCard({
           agentStates={agentStates}
         />
       </div>
+      {groundLine ? (
+        <p className="mt-2 shrink-0 text-caption text-text-dim" data-testid={`viz-result-card-grounding-${pathId}`}>
+          {groundLine}
+        </p>
+      ) : null}
       <div className="mt-4 flex shrink-0 flex-col items-center border-t border-border/50 pt-4">
         <ScoreRing score={score} pathLabel={pathLabel} pathTone={pathId} />
       </div>
