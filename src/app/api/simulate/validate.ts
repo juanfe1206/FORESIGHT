@@ -97,6 +97,46 @@ export function validateSimulationRequest(body: unknown): ValidationSuccess | Va
     };
   }
 
+  const businessTypeError = validateContextString(context.businessType, "context.businessType");
+  if (businessTypeError) return businessTypeError;
+  if (typeof context.businessType === "string" && context.businessType.length > 50) {
+    return { valid: false, code: "VALIDATION_ERROR", message: "context.businessType must be 50 characters or fewer." };
+  }
+
+  if (context.employeeCount !== undefined) {
+    if (typeof context.employeeCount !== "number" || context.employeeCount < 0) {
+      return { valid: false, code: "VALIDATION_ERROR", message: "context.employeeCount must be a number >= 0 when provided." };
+    }
+  }
+
+  const productsError = validateContextString(context.productsOrServices, "context.productsOrServices");
+  if (productsError) return productsError;
+
+  if (context.confirmedCompetitors !== undefined) {
+    if (!Array.isArray(context.confirmedCompetitors)) {
+      return { valid: false, code: "VALIDATION_ERROR", message: "context.confirmedCompetitors must be an array when provided." };
+    }
+    for (const comp of context.confirmedCompetitors) {
+      if (typeof comp !== "object" || comp === null) {
+        return { valid: false, code: "VALIDATION_ERROR", message: "Each confirmedCompetitor must be an object." };
+      }
+      const c = comp as Record<string, unknown>;
+      if (typeof c.name !== "string" || typeof c.lat !== "number" || typeof c.lng !== "number") {
+        return { valid: false, code: "VALIDATION_ERROR", message: "Each confirmedCompetitor must have name (string), lat (number), lng (number)." };
+      }
+    }
+  }
+
+  if (context.confirmedLocation !== undefined) {
+    if (typeof context.confirmedLocation !== "object" || context.confirmedLocation === null) {
+      return { valid: false, code: "VALIDATION_ERROR", message: "context.confirmedLocation must be an object when provided." };
+    }
+    const loc = context.confirmedLocation as Record<string, unknown>;
+    if (typeof loc.lat !== "number" || typeof loc.lng !== "number") {
+      return { valid: false, code: "VALIDATION_ERROR", message: "context.confirmedLocation must have lat (number) and lng (number)." };
+    }
+  }
+
   const optionsValue = body.options;
   if (optionsValue !== undefined && !isRecord(optionsValue)) {
     return {
@@ -134,6 +174,11 @@ export function validateSimulationRequest(body: unknown): ValidationSuccess | Va
           ? { customerBase: context.customerBase }
           : undefined),
         ...(typeof context.details === "string" ? { details: context.details } : undefined),
+        ...(typeof context.businessType === "string" ? { businessType: context.businessType } : undefined),
+        ...(typeof context.employeeCount === "number" ? { employeeCount: context.employeeCount } : undefined),
+        ...(typeof context.productsOrServices === "string" ? { productsOrServices: context.productsOrServices } : undefined),
+        ...(Array.isArray(context.confirmedCompetitors) ? { confirmedCompetitors: context.confirmedCompetitors as SimulationRequest["context"]["confirmedCompetitors"] } : undefined),
+        ...(typeof context.confirmedLocation === "object" && context.confirmedLocation !== null ? { confirmedLocation: context.confirmedLocation as SimulationRequest["context"]["confirmedLocation"] } : undefined),
       },
       ...(options ? { options } : undefined),
     },

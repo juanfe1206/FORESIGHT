@@ -1,6 +1,6 @@
 # Story 6.4: Demo Scenarios, Script & Pre-Demo Checklist
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -150,4 +150,4 @@ GPT-5.3 (Cursor agent)
 
 ---
 
-**Story completion status:** review - demo scenarios + script/checklist + deterministic mapping implemented and validated.
+**Story completion status:** done - demo scenarios + script/checklist + deterministic mapping implemented, validated, and code-reviewed.

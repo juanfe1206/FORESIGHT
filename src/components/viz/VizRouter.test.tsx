@@ -30,24 +30,20 @@ function withShell(runStatus: UiShellContextValue["runStatus"], node: ReactNode)
   );
 }
 
-describe("VizRouter", () => {
-  it("renders FlowView when viz_type is flow", () => {
+describe("VizRouter (map-only pivot)", () => {
+  it("always renders map placeholder regardless of viz_type", () => {
     render(
       <MotionConfig reducedMotion="always">
         {withShell(
           "inProgress",
-          <VizRouter
-            {...MOCK_VIZ_SLOT_PROPS_A}
-            viz_type="flow"
-            agentStates={d4}
-          />,
+          <VizRouter {...MOCK_VIZ_SLOT_PROPS_A} viz_type="flow" agentStates={d4} />,
         )}
       </MotionConfig>,
     );
-    expect(screen.getByTestId("viz-router-flow")).toBeInTheDocument();
+    expect(screen.getByTestId("viz-placeholder-map")).toBeInTheDocument();
   });
 
-  it("renders NetworkView when viz_type is network", () => {
+  it("renders map placeholder for network viz_type", () => {
     render(
       <MotionConfig reducedMotion="always">
         {withShell(
@@ -56,7 +52,7 @@ describe("VizRouter", () => {
         )}
       </MotionConfig>,
     );
-    expect(screen.getByTestId("network-view")).toBeInTheDocument();
+    expect(screen.getByTestId("viz-placeholder-map")).toBeInTheDocument();
   });
 
   it("renders map placeholder when viz_type is map", () => {
@@ -68,7 +64,7 @@ describe("VizRouter", () => {
     expect(screen.getByTestId("viz-placeholder-map")).toBeInTheDocument();
   });
 
-  it("renders FallbackViz when viz_type is explicitly fallback", () => {
+  it("renders map placeholder for fallback viz_type", () => {
     render(
       <MotionConfig reducedMotion="always">
         {withShell(
@@ -77,11 +73,10 @@ describe("VizRouter", () => {
         )}
       </MotionConfig>,
     );
-    expect(screen.getByTestId("fallback-viz")).toBeInTheDocument();
-    expect(screen.queryByTestId("network-view")).not.toBeInTheDocument();
+    expect(screen.getByTestId("viz-placeholder-map")).toBeInTheDocument();
   });
 
-  it("forces FallbackViz when shell runStatus is fallback", () => {
+  it("renders map placeholder even when shell runStatus is fallback", () => {
     render(
       <MotionConfig reducedMotion="always">
         {withShell(
@@ -90,7 +85,6 @@ describe("VizRouter", () => {
         )}
       </MotionConfig>,
     );
-    expect(screen.getByTestId("fallback-viz")).toBeInTheDocument();
-    expect(screen.queryByTestId("network-view")).not.toBeInTheDocument();
+    expect(screen.getByTestId("viz-placeholder-map")).toBeInTheDocument();
   });
 });

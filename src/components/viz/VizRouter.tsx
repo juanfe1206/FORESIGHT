@@ -2,11 +2,8 @@
 
 import React from "react";
 import type { FallbackVizProps, VizSlotProps } from "@/lib/integration-contracts";
-import { useUiShell } from "@/lib/ui-shell-context";
 import type { AgentState } from "@/lib/types";
 import { FallbackViz } from "./FallbackViz";
-import { FlowView } from "./FlowView/FlowView";
-import { NetworkView } from "./NetworkView/NetworkView";
 
 export type VizRouterProps = VizSlotProps & {
   agentStates?: AgentState[];
@@ -33,25 +30,7 @@ function MapPlaceholder({ pathLabel }: VizSlotProps) {
 }
 
 function VizRouterSwitch(props: VizRouterSwitchProps) {
-  const { runStatus } = useUiShell();
-  const forcedFallback = runStatus === "fallback";
-  const mode = forcedFallback ? "fallback" : props.viz_type;
-
-  switch (mode) {
-    case "flow":
-      return <FlowView pathLabel={props.pathLabel} pathData={props.pathData} />;
-    case "network":
-      return <NetworkView {...props} />;
-    case "fallback":
-      return <FallbackViz {...props} />;
-    case "map":
-      return <MapPlaceholder viz_type="map" pathLabel={props.pathLabel} pathData={props.pathData} />;
-    default: {
-      const _exhaustive: never = mode;
-      void _exhaustive;
-      return <FallbackViz {...props} />;
-    }
-  }
+  return <MapPlaceholder viz_type="map" pathLabel={props.pathLabel} pathData={props.pathData} />;
 }
 
 type BoundaryState = { hasError: boolean };

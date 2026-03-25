@@ -4,12 +4,13 @@ import Map, { Layer, Marker, Source } from "react-map-gl/mapbox";
 import { motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PathData } from "@/lib/types";
+import { MADRID_DISTRITOS } from "@/lib/geo/madrid-distritos";
 import { CashFlowTicker } from "./CashFlowTicker";
 
 type PointFeature = GeoJSON.Feature<GeoJSON.Point, { id: number }>;
 type FeatureCollectionPoints = GeoJSON.FeatureCollection<GeoJSON.Point>;
 
-const CENTER = { lng: -3.7004, lat: 40.4167 };
+const DEFAULT_CENTER = { lng: -3.7004, lat: 40.4167 };
 
 const COMPETITOR_OFFSETS: readonly [number, number][] = [
   [0.007, 0.004],
@@ -30,7 +31,7 @@ function gaussian(): number {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
-function buildCustomerFeatures(n: number, center: typeof CENTER): PointFeature[] {
+function buildCustomerFeatures(n: number, center: { lng: number; lat: number }): PointFeature[] {
   const features: PointFeature[] = [];
   for (let i = 0; i < n; i += 1) {
     const lng = center.lng + gaussian() * 0.005;
@@ -45,7 +46,7 @@ function buildCustomerFeatures(n: number, center: typeof CENTER): PointFeature[]
   return features;
 }
 
-function buildHeatFeatures(center: typeof CENTER): FeatureCollectionPoints {
+function buildHeatFeatures(center: { lng: number; lat: number }): FeatureCollectionPoints {
   const coords: [number, number][] = [
     [center.lng - 0.006, center.lat + 0.004],
     [center.lng + 0.005, center.lat - 0.003],
@@ -71,9 +72,16 @@ function easeInOut(t: number): number {
 export type MapSceneProps = {
   pathData: PathData;
   pathLabel: string;
+  /** Visual color tint — "A" uses accent, "B" uses blue. Does NOT affect map center. */
+  pathTone?: "A" | "B";
+  /** Single center for the map. Both paths share the user's confirmed location. */
+  center?: { lat: number; lng: number };
+  /** Real competitor positions from Overpass; when provided, replaces COMPETITOR_OFFSETS. */
+  confirmedCompetitors?: Array<{ name: string; lat: number; lng: number }>;
 };
 
-export function MapScene({ pathData, pathLabel }: MapSceneProps) {
+export function MapScene({ pathData, pathLabel, pathTone = "B", center, confirmedCompetitors }: MapSceneProps) {
+  const CENTER = center ?? DEFAULT_CENTER;
   const reduceMotion = useReducedMotion() ?? false;
   const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ?? "";
 
@@ -86,10 +94,10 @@ export function MapScene({ pathData, pathLabel }: MapSceneProps) {
 
   const allCustomers = useMemo(
     () => buildCustomerFeatures(customerN, CENTER),
-    [customerN],
+    [customerN, CENTER],
   );
 
-  const heatData = useMemo(() => buildHeatFeatures(CENTER), []);
+  const heatData = useMemo(() => buildHeatFeatures(CENTER), [CENTER]);
 
   const [mapLoaded, setMapLoaded] = useState(false);
   const [visibleCustomerCount, setVisibleCustomerCount] = useState(0);
@@ -183,11 +191,14 @@ export function MapScene({ pathData, pathLabel }: MapSceneProps) {
 
   const competitorPositions = useMemo(
     () =>
-      COMPETITOR_OFFSETS.map(([dlng, dlat]) => ({
-        lng: CENTER.lng + dlng,
-        lat: CENTER.lat + dlat,
-      })),
-    [],
+      confirmedCompetitors && confirmedCompetitors.length > 0
+        ? confirmedCompetitors.map((c) => ({ lng: c.lng, lat: c.lat, name: c.name }))
+        : COMPETITOR_OFFSETS.map(([dlng, dlat]) => ({
+            lng: CENTER.lng + dlng,
+            lat: CENTER.lat + dlat,
+            name: undefined as string | undefined,
+          })),
+    [CENTER, confirmedCompetitors],
   );
 
   return (
@@ -208,13 +219,39 @@ export function MapScene({ pathData, pathLabel }: MapSceneProps) {
         reuseMaps
         onIdle={onMapIdle}
       >
+        <Source id="distritos" type="geojson" data={MADRID_DISTRITOS as GeoJSON.FeatureCollection}>
+          <Layer
+            id="distritos-fill"
+            type="fill"
+            paint={{
+              "fill-color": [
+                "interpolate",
+                ["linear"],
+                ["get", "commercialDensity"],
+                40, "rgba(59, 130, 246, 0.08)",
+                200, "rgba(59, 130, 246, 0.25)",
+                450, "rgba(59, 130, 246, 0.50)",
+              ],
+              "fill-opacity": 0.7,
+            }}
+          />
+          <Layer
+            id="distritos-line"
+            type="line"
+            paint={{
+              "line-color": "rgba(148, 163, 184, 0.5)",
+              "line-width": 1,
+            }}
+          />
+        </Source>
+
         <Source id="customers" type="geojson" data={customerData}>
           <Layer
             id="customers-circles"
             type="circle"
             paint={{
               "circle-radius": 4,
-              "circle-color": "#2196F3",
+              "circle-color": pathTone === "A" ? "#14b8a6" : "#3b82f6",
               "circle-opacity": 0.7,
             }}
           />
@@ -227,17 +264,19 @@ export function MapScene({ pathData, pathLabel }: MapSceneProps) {
             paint={{
               "heatmap-weight": heatIntensity,
               "heatmap-intensity": heatIntensity * 1.2,
-              "heatmap-color": [
-                "interpolate",
-                ["linear"],
-                ["heatmap-density"],
-                0,
-                "rgba(255, 71, 87, 0)",
-                0.4,
-                "rgba(255, 71, 87, 0.35)",
-                1,
-                "rgba(255, 71, 87, 0.6)",
-              ],
+              "heatmap-color": pathTone === "A"
+                ? [
+                    "interpolate", ["linear"], ["heatmap-density"],
+                    0, "rgba(20, 184, 166, 0)",
+                    0.4, "rgba(20, 184, 166, 0.35)",
+                    1, "rgba(20, 184, 166, 0.6)",
+                  ]
+                : [
+                    "interpolate", ["linear"], ["heatmap-density"],
+                    0, "rgba(255, 71, 87, 0)",
+                    0.4, "rgba(255, 71, 87, 0.35)",
+                    1, "rgba(255, 71, 87, 0.6)",
+                  ],
               "heatmap-opacity": heatOpacity,
               "heatmap-radius": 28,
             }}
@@ -268,7 +307,7 @@ export function MapScene({ pathData, pathLabel }: MapSceneProps) {
         {competitorPositions.map((pos, i) => (
           <Marker key={`${pos.lng}-${pos.lat}`} longitude={pos.lng} latitude={pos.lat} anchor="center">
             <motion.div
-              className="flex size-4 items-center justify-center"
+              className="flex flex-col items-center"
               style={{ opacity: competitorOpacity }}
               initial={{ scale: 0 }}
               animate={{
@@ -287,6 +326,11 @@ export function MapScene({ pathData, pathLabel }: MapSceneProps) {
               }
             >
               <div className="size-3 rotate-45 bg-red" />
+              {pos.name && (
+                <span className="mt-0.5 max-w-[8rem] truncate text-center text-[10px] leading-tight text-text-dim">
+                  {pos.name}
+                </span>
+              )}
             </motion.div>
           </Marker>
         ))}

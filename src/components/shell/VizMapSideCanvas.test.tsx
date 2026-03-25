@@ -20,13 +20,13 @@ describe("VizMapSideCanvas", () => {
     expect(screen.getByTestId("map-canvas-region-right")).toBeInTheDocument();
   });
 
-  it("does not wrap children when vizType is not map", () => {
+  it("always wraps children with map canvas regardless of vizType (map-only pivot)", () => {
     render(
       <VizMapSideCanvas side="left" vizType="flow">
         <span data-testid="child">content</span>
       </VizMapSideCanvas>,
     );
-    expect(screen.queryByTestId("map-canvas-region-left")).not.toBeInTheDocument();
+    expect(screen.getByTestId("map-canvas-region-left")).toBeInTheDocument();
     expect(screen.getByTestId("child")).toBeInTheDocument();
   });
 });

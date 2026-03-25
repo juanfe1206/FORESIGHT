@@ -39,13 +39,23 @@ export class MapErrorBoundary extends Component<
   }
 }
 
-export function MapHalf(props: VizSlotProps) {
-  if (props.viz_type !== "map") return null;
+export type MapHalfProps = VizSlotProps & {
+  pathTone?: "A" | "B";
+  center?: { lat: number; lng: number };
+  confirmedCompetitors?: Array<{ name: string; lat: number; lng: number }>;
+};
 
+export function MapHalf(props: MapHalfProps) {
   return (
     <MapErrorBoundary>
       <div className="relative flex min-h-[10rem] flex-1 flex-col">
-        <MapScene pathData={props.pathData} pathLabel={props.pathLabel} />
+        <MapScene
+          pathData={props.pathData}
+          pathLabel={props.pathLabel}
+          pathTone={props.pathTone}
+          center={props.center}
+          confirmedCompetitors={props.confirmedCompetitors}
+        />
       </div>
     </MapErrorBoundary>
   );

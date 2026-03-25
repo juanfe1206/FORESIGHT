@@ -641,3 +641,55 @@ So that rehearsal is repeatable under pressure.
 **Then** classifier yields map, flow, and network respectively (or documented acceptable substitute with FallbackViz for network if time-boxed)
 **And** a `docs/` or `_bmad-output` demo script doc lists the 60-second narration beats
 **And** checklist covers: cached replay path tested once, FallbackViz tested, projector contrast spot-check, screenshot backup captured
+
+---
+
+## Epic 7: Data-Enriched Demo Polish
+
+Map-only visualization pivot with real Madrid distrito demographics, guided 4-step wizard input with live competitor discovery from OpenStreetMap, and transparent agent reasoning with structured assumption output.
+
+**Context:** Epics 1-6 delivered a working thin-slice demo. Epic 7 enriches it with real geographic data, guided input collection, and agent transparency — pivoting from three shallow viz modes to one deep, data-driven map view.
+
+**Dependencies:** Epic 6 (all done). No new external paid APIs — OpenStreetMap Overpass is free and keyless.
+
+### Story 7.1: Map-Only Viz + Madrid Distrito Data Overlay
+
+As a small business owner,
+I want to always see a rich geographic map with real distrito demographics for both paths,
+So that I can visually compare how each decision plays out in my actual neighborhood.
+
+**Acceptance Criteria:**
+
+**Given** any `viz_type` classification (map, flow, or network)
+**When** the simulation renders
+**Then** both side panels always show the map visualization with Madrid distrito boundary polygons color-coded by commercial density
+**And** Path A and Path B maps center on different locations (candidate vs existing)
+**And** a typed GeoJSON fixture with 21 Madrid distritos and demographic properties is embedded
+
+### Story 7.2: 4-Step Wizard Input + Live Competitor Discovery
+
+As a small business owner,
+I want a guided step-by-step input flow that confirms my location and shows real competitors found nearby,
+So that the simulation is grounded in my actual business context.
+
+**Acceptance Criteria:**
+
+**Given** the user is on the input screen
+**When** they begin the wizard
+**Then** a 4-step flow guides them: Decision → Business details → Confirm location → Confirm competitors (from OpenStreetMap)
+**And** each step slides with Framer Motion transitions
+**And** the final payload includes all wizard data plus confirmed competitor coordinates
+
+### Story 7.3: Agent Prompt Overhaul + Assumption Transparency
+
+As a small business owner,
+I want to see what the simulation agents assumed versus what I told them,
+So that I understand why confidence varies and can trust the results more.
+
+**Acceptance Criteria:**
+
+**Given** enriched context from the wizard
+**When** agents run
+**Then** each agent outputs a structured `assumptions: string[]` listing what it assumed vs what was supplied
+**And** the deep dive panel shows assumptions alongside agent insights
+**And** agents reference distrito demographics and confirmed competitors when available

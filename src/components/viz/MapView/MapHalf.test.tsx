@@ -14,15 +14,16 @@ describe("MapHalf", () => {
     expect(await screen.findByTestId("mock-map", {}, { timeout: 8000 })).toBeInTheDocument();
   });
 
-  it("returns null when viz_type is not map", () => {
+  it("renders map even when viz_type is not map (map-only pivot)", async () => {
     vi.stubEnv("NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN", "pk.test");
-    const { container } = render(
-      <MapHalf
-        {...MOCK_VIZ_SLOT_PROPS_A}
-        viz_type="flow"
-      />,
-    );
-    expect(container.firstChild).toBeNull();
+    render(<MapHalf {...MOCK_VIZ_SLOT_PROPS_A} viz_type="flow" />);
+    expect(await screen.findByTestId("mock-map", {}, { timeout: 8000 })).toBeInTheDocument();
+  });
+
+  it("threads pathTone prop to MapScene", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN", "pk.test");
+    render(<MapHalf {...MOCK_VIZ_SLOT_PROPS_A} pathTone="A" />);
+    expect(await screen.findByTestId("mock-map", {}, { timeout: 8000 })).toBeInTheDocument();
   });
 });
 

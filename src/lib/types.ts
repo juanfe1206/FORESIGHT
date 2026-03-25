@@ -12,6 +12,11 @@ export interface SimulationRequest {
     location?: string;
     customerBase?: string;
     details?: string;
+    businessType?: string;
+    employeeCount?: number;
+    productsOrServices?: string;
+    confirmedCompetitors?: Array<{ name: string; lat: number; lng: number }>;
+    confirmedLocation?: { lat: number; lng: number };
   };
   options?: {
     stream?: boolean;

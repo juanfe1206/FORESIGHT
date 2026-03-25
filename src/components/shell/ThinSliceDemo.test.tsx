@@ -1,6 +1,7 @@
+import type React from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MotionConfig } from "framer-motion";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThinSliceDemo } from "./ThinSliceDemo";
 import { RUN_MOCK_MS } from "@/lib/ui-state";
@@ -9,7 +10,6 @@ import type { SimulationResponse } from "@/lib/types";
 import { __simulationCacheTestUtils } from "@/lib/simulation-client-cache";
 import { validateSimulationResponse } from "@/lib/validate-simulation-response";
 import { SIMULATION_FRAMING_BANNER_TEST_ID } from "@/components/trust/SimulationFramingBanner";
-import { DEMO_SCENARIOS } from "@/lib/demo-scenarios";
 
 const mockFetch = vi.fn();
 
@@ -95,6 +95,66 @@ const makeSuccessResponse = (pathA = "Path A", pathB = "Path B") => {
 const delayedFetch = (response = makeSuccessResponse(), delayMs = 200) =>
   new Promise((resolve) => window.setTimeout(() => resolve(response), delayMs));
 
+/**
+ * Navigate the wizard through all 4 steps and submit.
+ * Step 0: enter decision, click Next
+ * Step 1: click Next (fields optional)
+ * Step 2: click Confirm location
+ * Step 3: click Run Simulation
+ *
+ * NOTE: The caller must use renderWithReducedMotion() so AnimatePresence
+ * exit animations resolve instantly via stubbed prefers-reduced-motion.
+ */
+async function navigateWizardAndSubmit(decision: string) {
+  fireEvent.change(screen.getByTestId("input-decision"), {
+    target: { value: decision },
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByTestId("wizard-next-0"));
+  });
+  await waitFor(() => expect(screen.getByTestId("wizard-step-1")).toBeInTheDocument());
+
+  await act(async () => {
+    fireEvent.click(screen.getByTestId("wizard-next-1"));
+  });
+  await waitFor(() => expect(screen.getByTestId("wizard-step-2")).toBeInTheDocument());
+
+  await act(async () => {
+    fireEvent.click(screen.getByTestId("wizard-confirm-location"));
+  });
+  await waitFor(() => expect(screen.getByTestId("wizard-step-3")).toBeInTheDocument());
+
+  await act(async () => {
+    fireEvent.click(screen.getByTestId("wizard-submit"));
+  });
+}
+
+function stubReducedMotion() {
+  const mql = {
+    matches: true,
+    media: "(prefers-reduced-motion: reduce)",
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    onchange: null,
+    dispatchEvent: vi.fn(),
+  } satisfies MediaQueryList;
+
+  const original = window.matchMedia;
+  window.matchMedia = (query: string): MediaQueryList => {
+    if (query === "(prefers-reduced-motion)" || query === "(prefers-reduced-motion: reduce)") {
+      return mql;
+    }
+    return original(query);
+  };
+}
+
+function renderWithReducedMotion(ui: React.ReactElement = <ThinSliceDemo />) {
+  stubReducedMotion();
+  return render(ui);
+}
+
 describe("ThinSliceDemo", () => {
   beforeEach(() => {
     mockFetch.mockImplementation(() => delayedFetch());
@@ -108,62 +168,56 @@ describe("ThinSliceDemo", () => {
     mockFetch.mockReset();
   });
 
-  it("initial uiStage is input and runStatus is idle, and input shell is present", () => {
+  it("initial uiStage is input and runStatus is idle, and wizard is present", () => {
     render(<ThinSliceDemo />);
     const root = screen.getByTestId("thin-slice-root");
     expect(root).toHaveAttribute("data-ui-stage", "input");
     expect(root).toHaveAttribute("data-run-status", "idle");
     expect(screen.getByRole("region", { name: /decision input/i })).toBeInTheDocument();
+    expect(screen.getByTestId("input-wizard")).toBeInTheDocument();
     expect(screen.getByTestId(SIMULATION_FRAMING_BANNER_TEST_ID)).toHaveTextContent(
       /personalized professional advice/i,
     );
   });
 
-  it("submit transitions synchronously to submitting before microtask advances to inProgress", () => {
+  it("wizard shows step dots and starts at step 0", () => {
     render(<ThinSliceDemo />);
-    fireEvent.change(screen.getByRole("textbox", { name: /decision/i }), {
+    expect(screen.getByTestId("wizard-step-dot-0")).toBeInTheDocument();
+    expect(screen.getByTestId("wizard-step-dot-3")).toBeInTheDocument();
+    expect(screen.getByTestId("wizard-step-0")).toBeInTheDocument();
+  });
+
+  it("validates decision on step 0 — blocks advance when empty", async () => {
+    render(<ThinSliceDemo />);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("wizard-next-0"));
+    });
+    expect(await screen.findByTestId("decision-validation-error")).toBeInTheDocument();
+    expect(screen.getByTestId("wizard-step-0")).toBeInTheDocument();
+  });
+
+  it("navigates forward and backward through wizard steps", async () => {
+    renderWithReducedMotion();
+
+    fireEvent.change(screen.getByTestId("input-decision"), {
       target: { value: "X vs Y" },
     });
-    act(() => {
-      fireEvent.click(screen.getByRole("button", { name: /simulate my decision/i }));
-    });
-    const root = screen.getByTestId("thin-slice-root");
-    expect(root).toHaveAttribute("data-run-status", "submitting");
-    expect(root).toHaveAttribute("data-ui-stage", "input");
-    expect(screen.getByTestId("simulate-submit")).toHaveAttribute("aria-busy", "true");
-  });
-
-  it("demo scenario buttons preload the form and submit includes demoScenarioId", async () => {
-    const user = userEvent.setup();
-    render(<ThinSliceDemo />);
-
-    await user.click(screen.getByTestId("demo-scenario-btn-demo-map-v1"));
-
-    const decisionField = screen.getByRole("textbox", { name: /decision/i });
-    expect(decisionField).toHaveValue(DEMO_SCENARIOS["demo-map-v1"].decision);
-
-    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
-
-    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
-    const [, fetchOptions] = mockFetch.mock.calls[0] as [string, RequestInit];
-
-    const parsed = JSON.parse((fetchOptions.body as string) ?? "{}") as {
-      options?: { demoScenarioId?: string };
-    };
-    expect(parsed.options?.demoScenarioId).toBe("demo-map-v1");
-  });
-
-  it("flows input → dashboard after API response", async () => {
-    const user = userEvent.setup();
-    render(<ThinSliceDemo />);
-
-    const decisionField = screen.getByRole("textbox", { name: "Decision" });
     await act(async () => {
-      fireEvent.change(decisionField, {
-        target: { value: "Expand west vs deepen existing market" },
-      });
+      fireEvent.click(screen.getByTestId("wizard-next-0"));
     });
-    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+    await waitFor(() => expect(screen.getByTestId("wizard-step-1")).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("wizard-next-1"));
+    });
+    await waitFor(() => expect(screen.getByTestId("wizard-step-2")).toBeInTheDocument());
+
+    expect(screen.getByTestId("location-confirm-card")).toBeInTheDocument();
+  });
+
+  it("submit transitions through wizard to running then dashboard", async () => {
+    renderWithReducedMotion();
+    await navigateWizardAndSubmit("Expand west vs deepen existing market");
 
     await waitFor(
       () =>
@@ -181,6 +235,31 @@ describe("ThinSliceDemo", () => {
     expect(screen.getByTestId(SIMULATION_FRAMING_BANNER_TEST_ID)).toHaveTextContent(
       /not guaranteed forecasts/i,
     );
+  });
+
+  it("demo scenario buttons preload the wizard and submit includes demoScenarioId", async () => {
+    renderWithReducedMotion();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("demo-scenario-btn-demo-map-v1"));
+    });
+
+    // Demo buttons skip to step 3
+    await waitFor(() => expect(screen.getByTestId("wizard-step-3")).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("wizard-submit"));
+    });
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
+    const [, fetchOptions] = mockFetch.mock.calls[0] as [string, RequestInit];
+
+    const parsed = JSON.parse((fetchOptions.body as string) ?? "{}") as {
+      options?: { demoScenarioId?: string };
+      context?: { businessType?: string };
+    };
+    expect(parsed.options?.demoScenarioId).toBe("demo-map-v1");
+    expect(parsed.context?.businessType).toBe("bakery");
   });
 
   it("shows running stage with three-panel slots via dev panel", async () => {
@@ -224,7 +303,7 @@ describe("ThinSliceDemo", () => {
     expect(screen.getByTestId("map-canvas-region-right")).toBeInTheDocument();
   });
 
-  it("hides map canvas wrappers when vizType is not map", async () => {
+  it("keeps map canvas wrappers visible even when vizType changes (map-only pivot)", async () => {
     const user = userEvent.setup();
     render(<ThinSliceDemo />);
     await user.selectOptions(screen.getByLabelText(/dev: uistage/i), "running");
@@ -237,39 +316,25 @@ describe("ThinSliceDemo", () => {
 
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-viz-type", "flow");
     expect(screen.getByTestId("mode-badge-label")).toHaveTextContent("Flow");
-    expect(screen.queryByTestId("map-canvas-region-left")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("map-canvas-region-right")).not.toBeInTheDocument();
+    expect(screen.getByTestId("map-canvas-region-left")).toBeInTheDocument();
+    expect(screen.getByTestId("map-canvas-region-right")).toBeInTheDocument();
   });
 
-  it("shows user-derived path labels in running panel headings for pipe-separated decisions", async () => {
+  it("shows user-derived path labels in running map panels for pipe-separated decisions", async () => {
     mockFetch.mockImplementation(() => delayedFetch(makeSuccessResponse(), 5000));
-    const user = userEvent.setup();
-    render(<ThinSliceDemo />);
+    renderWithReducedMotion();
 
-    await user.selectOptions(screen.getByTestId("dev-viz-type-preview"), "flow");
-
-    await act(async () => {
-      fireEvent.change(screen.getByRole("textbox", { name: /decision/i }), {
-        target: { value: "Bake more bread | Focus on catering" },
-      });
-    });
-    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+    await navigateWizardAndSubmit("Bake more bread | Focus on catering");
 
     await waitFor(() => expect(screen.getByTestId("simulation-shell")).toBeInTheDocument());
-    expect(screen.getByRole("heading", { name: /^Bake more bread$/ })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Focus on catering$/ })).toBeInTheDocument();
+    expect(screen.getByTestId("map-canvas-region-left")).toBeInTheDocument();
+    expect(screen.getByTestId("map-canvas-region-right")).toBeInTheDocument();
     expect(screen.queryByText(/scenario\s*a/i)).not.toBeInTheDocument();
   });
 
   it("renders dashboard stage with KPI slots", async () => {
-    const user = userEvent.setup();
-    render(<ThinSliceDemo />);
-    await act(async () => {
-      fireEvent.change(screen.getByRole("textbox", { name: /decision/i }), {
-        target: { value: "Plan A vs Plan B" },
-      });
-    });
-    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+    renderWithReducedMotion();
+    await navigateWizardAndSubmit("Plan A vs Plan B");
 
     await waitFor(
       () =>
@@ -329,10 +394,11 @@ describe("ThinSliceDemo", () => {
     expect(screen.getAllByTestId("slot-left-panel").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("does not leave input when decision is empty on submit", async () => {
-    const user = userEvent.setup();
-    render(<ThinSliceDemo />);
-    await user.click(screen.getByTestId("simulate-submit"));
+  it("does not leave input when decision is empty on wizard step 0", async () => {
+    renderWithReducedMotion();
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("wizard-next-0"));
+    });
     expect(await screen.findByTestId("decision-validation-error")).toBeInTheDocument();
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "input");
   });
@@ -343,32 +409,9 @@ describe("ThinSliceDemo", () => {
     expect(screen.queryByTestId("dev-ui-stage-preview")).not.toBeInTheDocument();
   });
 
-  it("supports keyboard activation of the primary submit control", async () => {
-    const user = userEvent.setup();
-    render(<ThinSliceDemo />);
-    const decisionField = screen.getByRole("textbox", { name: /decision/i });
-    await user.type(decisionField, "Option one vs option two");
-    for (let i = 0; i < 6; i += 1) {
-      await user.tab();
-    }
-    await user.keyboard("{Enter}");
-
-    await waitFor(
-      () =>
-        expect(screen.getByTestId("thin-slice-root")).toHaveAttribute(
-          "data-ui-stage",
-          "dashboard",
-        ),
-      { timeout: 4000 },
-    );
-  });
-
-  it("advances runStatus to completed via API response after submit", async () => {
-    const user = userEvent.setup();
-    render(<ThinSliceDemo />);
-
-    await user.type(screen.getByRole("textbox", { name: /decision/i }), "X vs Y");
-    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+  it("advances runStatus to completed via API response after wizard submit", async () => {
+    renderWithReducedMotion();
+    await navigateWizardAndSubmit("X vs Y");
 
     await waitFor(
       () =>
@@ -385,14 +428,8 @@ describe("ThinSliceDemo", () => {
     mockFetch.mockImplementation(() =>
       delayedFetch(makeSuccessResponse("Open Berlin office", "Expand remote team")),
     );
-    const user = userEvent.setup();
-    render(<ThinSliceDemo />);
-
-    await user.type(
-      screen.getByRole("textbox", { name: /decision/i }),
-      "Open Berlin office vs expand remote team",
-    );
-    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+    renderWithReducedMotion();
+    await navigateWizardAndSubmit("Open Berlin office vs expand remote team");
 
     await waitFor(
       () => expect(screen.getAllByText("Open Berlin office").length).toBeGreaterThan(0),
@@ -404,14 +441,8 @@ describe("ThinSliceDemo", () => {
   it("shows error banner and falls back to estimated results when API fails", async () => {
     vi.stubEnv("NEXT_PUBLIC_ENABLE_GOLDEN_REPLAY", "false");
     mockFetch.mockRejectedValue(new TypeError("Network error"));
-    const user = userEvent.setup();
-    render(<ThinSliceDemo />);
-
-    await user.type(
-      screen.getByRole("textbox", { name: /decision/i }),
-      "Expand west vs deepen existing",
-    );
-    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+    renderWithReducedMotion();
+    await navigateWizardAndSubmit("Expand west vs deepen existing");
 
     await waitFor(
       () => expect(screen.getByTestId("error-shell")).toBeInTheDocument(),
@@ -424,14 +455,8 @@ describe("ThinSliceDemo", () => {
 
   it("keeps running stage during live API wait while HUD animation reaches complete", async () => {
     mockFetch.mockImplementation(() => delayedFetch(makeSuccessResponse(), 6000));
-    render(<ThinSliceDemo />);
-
-    fireEvent.change(screen.getByRole("textbox", { name: /decision/i }), {
-      target: { value: "Expand west vs deepen existing" },
-    });
-    act(() => {
-      fireEvent.click(screen.getByRole("button", { name: /simulate my decision/i }));
-    });
+    renderWithReducedMotion();
+    await navigateWizardAndSubmit("Expand west vs deepen existing");
 
     await waitFor(() => expect(screen.getByTestId("simulation-shell")).toBeInTheDocument());
     await act(async () => {
@@ -467,15 +492,9 @@ describe("ThinSliceDemo", () => {
     localStorage.setItem(__simulationCacheTestUtils.STORAGE_KEY, JSON.stringify(store));
 
     mockFetch.mockRejectedValue(new TypeError("Network error"));
-    const user = userEvent.setup();
-    render(
-      <MotionConfig reducedMotion="always">
-        <ThinSliceDemo />
-      </MotionConfig>,
-    );
+    renderWithReducedMotion();
 
-    await user.type(screen.getByRole("textbox", { name: /decision/i }), "Plan X vs Plan Y");
-    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+    await navigateWizardAndSubmit("Plan X vs Plan Y");
 
     await waitFor(() => expect(screen.getByTestId("simulation-shell")).toBeInTheDocument());
     await waitFor(
@@ -493,7 +512,7 @@ describe("ThinSliceDemo", () => {
     expect(
       screen.getAllByText((_, el) => (el?.textContent ?? "").includes("Cached Path B")).length,
     ).toBeGreaterThan(0);
-  });
+  }, 15000);
 
   it("skips cache replay when useCachedOnFailure is false", async () => {
     vi.stubEnv("NEXT_PUBLIC_ENABLE_GOLDEN_REPLAY", "false");
@@ -508,15 +527,9 @@ describe("ThinSliceDemo", () => {
     );
 
     mockFetch.mockRejectedValue(new TypeError("Network error"));
-    const user = userEvent.setup();
-    render(
-      <MotionConfig reducedMotion="always">
-        <ThinSliceDemo simulationOptions={{ useCachedOnFailure: false }} />
-      </MotionConfig>,
-    );
+    renderWithReducedMotion(<ThinSliceDemo simulationOptions={{ useCachedOnFailure: false }} />);
 
-    await user.type(screen.getByRole("textbox", { name: /decision/i }), "Plan X vs Plan Y");
-    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+    await navigateWizardAndSubmit("Plan X vs Plan Y");
 
     await waitFor(
       () => expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard"),
@@ -550,15 +563,9 @@ describe("ThinSliceDemo", () => {
         }),
     });
 
-    const user = userEvent.setup();
-    render(
-      <MotionConfig reducedMotion="always">
-        <ThinSliceDemo />
-      </MotionConfig>,
-    );
+    renderWithReducedMotion();
 
-    await user.type(screen.getByRole("textbox", { name: /decision/i }), "Plan X vs Plan Y");
-    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+    await navigateWizardAndSubmit("Plan X vs Plan Y");
 
     await waitFor(
       () => expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "error"),

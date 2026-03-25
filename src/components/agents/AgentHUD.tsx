@@ -77,7 +77,7 @@ export function AgentHUD({
         <p className="mt-1 text-caption text-text-dim">Dual-path agents (simulation)</p>
       </div>
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 overflow-y-auto">
         {(["A", "B"] as const).map((pathId) => {
           const full = pathLabels[pathId];
           const states = agentStatesByPath[pathId];
@@ -90,13 +90,12 @@ export function AgentHUD({
               className="flex flex-col gap-2"
             >
               <h3
-                className="truncate font-heading text-body font-semibold text-text"
+                className="truncate font-heading text-body font-semibold"
                 title={full}
               >
-                {pathId === "A" ? "Path A" : "Path B"} —{" "}
-                <span className="text-accent">{full}</span>
+                <span className={pathId === "A" ? "text-accent" : "text-blue"}>{full}</span>
               </h3>
-              <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2">
                 {[0, 1, 2, 3].map((i) => {
                   const agentRow = agents?.[i];
                   return (

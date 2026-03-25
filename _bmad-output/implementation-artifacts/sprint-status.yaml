@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-24T21:34:57.5956932+01:00
-last_updated: 2026-03-26T00:05:00.0000000+01:00
+last_updated: 2026-03-26T11:00:00.0000000+01:00
 project: FORESIGHT
 project_key: NOKEY
 tracking_system: file-system
@@ -76,9 +76,15 @@ development_status:
   5-4-network-view-fallback-visualization: done
   epic-5-retrospective: optional
 
-  epic-6: in-progress
+  epic-6: done
   6-1-end-to-end-client-api-integration-progress-updates: done
   6-2-cached-golden-replay-bounded-client-cache: done
   6-3-transparency-confidence-non-advice-framing: done
-  6-4-demo-scenarios-script-pre-demo-checklist: review
+  6-4-demo-scenarios-script-pre-demo-checklist: done
   epic-6-retrospective: optional
+
+  epic-7: in-progress
+  7-1-map-only-distrito-data-overlay: review
+  7-2-wizard-input-competitor-discovery: review
+  7-3-agent-transparency-assumptions: ready-for-dev
+  epic-7-retrospective: optional

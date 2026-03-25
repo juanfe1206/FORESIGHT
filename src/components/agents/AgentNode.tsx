@@ -80,10 +80,8 @@ export function AgentNode({
   const accessibleName = `${pathLabelFull}, ${role}, ${stateLabel(state)}.${trustAria}`;
 
   const body =
-    state === "insight" && insight ? (
-      <p className="mt-1 line-clamp-2 text-caption leading-tight text-text">{insight}</p>
-    ) : state === "complete" && insight ? (
-      <p className="mt-1 line-clamp-2 text-caption leading-tight text-text">{insight}</p>
+    (state === "insight" || state === "complete") && insight ? (
+      <p className="mt-1.5 text-caption leading-snug text-text">{insight}</p>
     ) : (
       <p className="mt-1 text-caption text-text-dim">{stateLabel(state)}</p>
     );
@@ -92,20 +90,16 @@ export function AgentNode({
 
   const trustBlock =
     showTrust && grounding != null && confidence != null ? (
-      <div className="mt-1.5 space-y-1 border-t border-border/70 pt-1.5">
-        <p className="flex flex-wrap items-center gap-1.5 text-caption text-text-dim">
-          <span aria-hidden="true" className="select-none text-body text-text">
+      <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 border-t border-border/70 pt-1.5 text-[0.65rem] leading-tight text-text-dim">
+        <span className="inline-flex items-center gap-1">
+          <span aria-hidden="true" className="select-none text-text">
             {grounding === "supplied" ? "●" : grounding === "mixed" ? "◐" : "○"}
           </span>
-          <span className="font-medium text-text">{formatAgentGroundingLabel(grounding)}</span>
-        </p>
-        <p className="text-caption text-text-dim">
-          <span aria-hidden="true" className="mr-1 select-none text-body text-text">
-            %
-          </span>
-          Confidence: <span className="text-text">{pct}</span>
-        </p>
-      </div>
+          {formatAgentGroundingLabel(grounding)}
+        </span>
+        <span>·</span>
+        <span>{pct} conf.</span>
+      </p>
     ) : null;
 
   return (

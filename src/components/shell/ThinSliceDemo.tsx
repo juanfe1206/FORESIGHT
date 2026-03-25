@@ -15,10 +15,10 @@ import {
   type ReactNode,
 } from "react";
 import {
-  DecisionForm,
-  emptyDecisionFormState,
-  type DecisionFormInputState,
-} from "@/components/input/DecisionForm";
+  InputWizard,
+  emptyWizardState,
+  type InputWizardState,
+} from "@/components/input/InputWizard";
 import type {
   AgentOutput,
   ErrorResponse,
@@ -44,7 +44,6 @@ import { ScoreRing } from "@/components/dashboard/ScoreRing";
 import { READ_FULL_STORY_DELAY_S } from "@/lib/dashboard-choreography";
 import { MOCK_KPI_STACK_PROPS } from "@/lib/integration-contracts";
 import type { KpiStackSlotProps } from "@/lib/integration-contracts";
-import { VizRouter } from "@/components/viz/VizRouter";
 import { AGENT_ROLES } from "@/lib/types";
 import type { AgentState, VizType } from "@/lib/types";
 import { DEMO_SCENARIOS, DEMO_SCENARIO_ORDER, type DemoScenarioId } from "@/lib/demo-scenarios";
@@ -56,7 +55,6 @@ import { ModeBadge } from "@/components/running/ModeBadge";
 import { CenterPanelSlot, LeftPanelSlot, RightPanelSlot } from "./PanelSlots";
 import { SimulationShell } from "./SimulationShell";
 import { SimulationFramingBanner } from "@/components/trust/SimulationFramingBanner";
-import { summarizeGroundingDistribution } from "@/lib/format-agent-output";
 import { VizMapSideCanvas } from "./VizMapSideCanvas";
 import { buildHydrationFromSimulationResponse } from "@/lib/hydrate-simulation-ui";
 import { GOLDEN_DEMO_SIMULATION_RESPONSE } from "@/lib/golden/golden-demo-simulation-response";
@@ -96,12 +94,8 @@ const panelMotion = {
   animate: { opacity: 1, y: 0 },
 };
 
-const runCardClassLeft =
-  "order-1 flex min-h-48 flex-col rounded-xl border border-border bg-surface p-4 lg:order-1";
 const runCardClassCenter =
   "order-2 flex min-h-48 flex-col rounded-xl border border-border bg-surface p-4 lg:order-2";
-const runCardClassRight =
-  "order-3 flex min-h-48 flex-col rounded-xl border border-border bg-surface p-4 lg:order-3";
 
 function VizOrientationBand({ vizType }: { vizType: VizType }) {
   return (
@@ -137,7 +131,7 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
   const [uiStage, setUiStage] = useState<UiStage>(initialUiShellState.uiStage);
   const [runStatus, setRunStatus] = useState<UiRunStatus>(initialUiShellState.runStatus);
   const [vizType, setVizType] = useState<VizType>(initialUiShellState.vizType);
-  const [form, setForm] = useState<DecisionFormInputState>(emptyDecisionFormState);
+  const [form, setForm] = useState<InputWizardState>(emptyWizardState);
   const [activeDemoScenarioId, setActiveDemoScenarioId] = useState<DemoScenarioId | null>(null);
   const [pathLabels, setPathLabels] = useState<[string, string]>(["Path A", "Path B"]);
   const [agentResults, setAgentResults] = useState<{ A: AgentOutput[]; B: AgentOutput[] } | null>(null);
@@ -145,6 +139,17 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
   const [kpiResults, setKpiResults] = useState<{ A: KPIs; B: KPIs } | null>(null);
   const [comparison, setComparison] = useState<SimulationResponse["comparison"] | null>(null);
   const [meta, setMeta] = useState<SimulationResponse["meta"] | null>(null);
+
+  const [preloadedCompetitors, setPreloadedCompetitors] = useState<
+    import("@/lib/overpass").NearbyBusiness[] | null
+  >(null);
+  const [submittedCompetitors, setSubmittedCompetitors] = useState<
+    Array<{ name: string; lat: number; lng: number }> | null
+  >(null);
+  const [submittedLocation, setSubmittedLocation] = useState<
+    { lat: number; lng: number } | null
+  >(null);
+  const [wizardInitialStep, setWizardInitialStep] = useState(0);
 
   const applyDemoScenarioToForm = useCallback((id: DemoScenarioId) => {
     const s = DEMO_SCENARIOS[id];
@@ -155,7 +160,12 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
       location: s.context.location ?? "",
       customerBase: s.context.customerBase ?? "",
       details: s.context.details ?? "",
+      businessType: (s.businessType ?? "") as InputWizardState["businessType"],
+      employeeCount: s.employeeCount != null ? String(s.employeeCount) : "",
+      productsOrServices: s.productsOrServices ?? "",
     });
+    setPreloadedCompetitors(s.confirmedCompetitors ?? null);
+    setWizardInitialStep(3);
     setActiveDemoScenarioId(id);
   }, []);
 
@@ -203,13 +213,10 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
     kpis: kpiResults?.B ?? MOCK_BAKERY_MAP_FIXTURE.paths.B.kpis,
   }), [agentResults, synthesisResults, kpiResults]);
 
-  const insightsByPath = useMemo(() => {
-    const short = (s: string) => s.trim().split(/\s+/).slice(0, 4).join(" ");
-    return {
-      A: pathDataA.agents.map((a) => short(a.insight)),
-      B: pathDataB.agents.map((a) => short(a.insight)),
-    };
-  }, [pathDataA, pathDataB]);
+  const insightsByPath = useMemo(() => ({
+    A: pathDataA.agents.map((a) => a.insight),
+    B: pathDataB.agents.map((a) => a.insight),
+  }), [pathDataA, pathDataB]);
 
   const deepDiveProps = useMemo(() => ({
     pathA: pathDataA,
@@ -278,6 +285,8 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
     ({ decision, context }: { decision: string; context: SimulationRequest["context"] }) => {
       const optimisticLabels = derivePathLabels(decision);
       setPathLabels(optimisticLabels);
+      setSubmittedCompetitors(context.confirmedCompetitors ?? null);
+      setSubmittedLocation(context.confirmedLocation ?? null);
 
       isApiCallRef.current = true;
       setRunStatus("submitting");
@@ -385,8 +394,12 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
   const resetToInput = useCallback(() => {
     setUiStage("input");
     setRunStatus("idle");
-    setForm(emptyDecisionFormState);
+    setForm(emptyWizardState);
     setActiveDemoScenarioId(null);
+    setPreloadedCompetitors(null);
+    setSubmittedCompetitors(null);
+    setSubmittedLocation(null);
+    setWizardInitialStep(0);
     setVizType(initialUiShellState.vizType);
     setAgentResults(null);
     setSynthesisResults(null);
@@ -592,7 +605,7 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                       ) : null}
                     </div>
                   )}
-                  <DecisionForm
+                  <InputWizard
                     value={form}
                     onChange={(patch) => {
                       setForm((prev) => ({ ...prev, ...patch }));
@@ -600,7 +613,8 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                     }}
                     onValidSubmit={onValidSubmit}
                     isSubmitting={runStatus === "submitting"}
-                    formFooter={<SimulationFramingBanner />}
+                    preloadedCompetitors={preloadedCompetitors}
+                    initialStep={wizardInitialStep}
                   />
                 </motion.section>
               )}
@@ -617,34 +631,19 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                 >
                   <VizOrientationBand vizType={vizType} />
                   <SimulationShell
-                    leftAriaLabel="Path A visualization slot"
+                    leftAriaLabel={`${pathLabels[0]} visualization`}
                     centerAriaLabel="Agent HUD and progress slot"
-                    rightAriaLabel="Path B visualization slot"
+                    rightAriaLabel={`${pathLabels[1]} visualization`}
                     left={
-                      <VizMapSideCanvas side="left" vizType={vizType}>
-                        {vizType === "map" ? (
-                          <MapHalf
-                            viz_type="map"
-                            pathData={pathDataA}
-                            pathLabel={pathLabels[0]}
-                          />
-                        ) : (
-                          <motion.article
-                            {...panelMotion}
-                            transition={springTransition}
-                            className={`${runCardClassLeft} min-h-0 flex-1`}
-                          >
-                            <h2 className="shrink-0 font-heading text-h3 text-accent">{pathLabels[0]}</h2>
-                            <div className="mt-3 flex min-h-0 flex-1 flex-col">
-                              <VizRouter
-                                viz_type={vizType}
-                                pathData={pathDataA}
-                                pathLabel={pathLabels[0]}
-                                agentStates={agentStatesByPath.A}
-                              />
-                            </div>
-                          </motion.article>
-                        )}
+                      <VizMapSideCanvas side="left" vizType={vizType} pathLabel={pathLabels[0]}>
+                        <MapHalf
+                          viz_type={vizType}
+                          pathData={pathDataA}
+                          pathLabel={pathLabels[0]}
+                          pathTone="A"
+                          center={submittedLocation ?? undefined}
+                          confirmedCompetitors={submittedCompetitors ?? undefined}
+                        />
                       </VizMapSideCanvas>
                     }
                     center={
@@ -664,30 +663,15 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                       </motion.article>
                     }
                     right={
-                      <VizMapSideCanvas side="right" vizType={vizType}>
-                        {vizType === "map" ? (
-                          <MapHalf
-                            viz_type="map"
-                            pathData={pathDataB}
-                            pathLabel={pathLabels[1]}
-                          />
-                        ) : (
-                          <motion.article
-                            {...panelMotion}
-                            transition={{ ...springTransition, delay: 0.1 }}
-                            className={`${runCardClassRight} min-h-0 flex-1`}
-                          >
-                            <h2 className="shrink-0 font-heading text-h3 text-blue">{pathLabels[1]}</h2>
-                            <div className="mt-3 flex min-h-0 flex-1 flex-col">
-                              <VizRouter
-                                viz_type={vizType}
-                                pathData={pathDataB}
-                                pathLabel={pathLabels[1]}
-                                agentStates={agentStatesByPath.B}
-                              />
-                            </div>
-                          </motion.article>
-                        )}
+                      <VizMapSideCanvas side="right" vizType={vizType} pathLabel={pathLabels[1]}>
+                        <MapHalf
+                          viz_type={vizType}
+                          pathData={pathDataB}
+                          pathLabel={pathLabels[1]}
+                          pathTone="B"
+                          center={submittedLocation ?? undefined}
+                          confirmedCompetitors={submittedCompetitors ?? undefined}
+                        />
                       </VizMapSideCanvas>
                     }
                   />
@@ -707,38 +691,25 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                   <VizOrientationBand vizType={vizType} />
                   <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
                     <LeftPanelSlot
-                      aria-label="Path A summary and KPI slot"
+                      aria-label={`${pathLabels[0]} summary`}
                       className="order-1 lg:order-1"
                     >
                       <motion.div {...panelMotion} transition={springTransition} className="h-full">
-                        {vizType === "map" ? (
-                          <VizMapSideCanvas side="left" vizType={vizType}>
-                            <PathSummaryCard
-                              pathLabel={pathLabels[0]}
-                              pathId="A"
-                              accentClass="text-accent"
-                              summary={pathDataA.synthesis.summary}
-                              footer={
-                                <ScoreRing
-                                  score={kpiStackProps.kpisA.overallScore}
-                                  pathLabel={pathLabels[0]}
-                                  pathTone="A"
-                                />
-                              }
-                            />
-                          </VizMapSideCanvas>
-                        ) : (
-                          <VizResultCard
+                        <VizMapSideCanvas side="left" vizType={vizType} pathLabel={pathLabels[0]}>
+                          <PathSummaryCard
                             pathLabel={pathLabels[0]}
                             pathId="A"
                             accentClass="text-accent"
-                            vizType={vizType}
-                            pathData={pathDataA}
-                            score={kpiStackProps.kpisA.overallScore}
-                            agentStates={agentStatesByPath.A}
-                            agents={pathDataA.agents}
+                            summary={pathDataA.synthesis.summary}
+                            footer={
+                              <ScoreRing
+                                score={kpiStackProps.kpisA.overallScore}
+                                pathLabel={pathLabels[0]}
+                                pathTone="A"
+                              />
+                            }
                           />
-                        )}
+                        </VizMapSideCanvas>
                       </motion.div>
                     </LeftPanelSlot>
                     <CenterPanelSlot
@@ -798,7 +769,7 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                       </motion.div>
                     </CenterPanelSlot>
                     <RightPanelSlot
-                      aria-label="Path B summary and KPI slot"
+                      aria-label={`${pathLabels[1]} summary`}
                       className="order-3 lg:order-3"
                     >
                       <motion.div
@@ -806,34 +777,21 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                         transition={{ ...springTransition, delay: 0.1 }}
                         className="h-full"
                       >
-                        {vizType === "map" ? (
-                          <VizMapSideCanvas side="right" vizType={vizType}>
-                            <PathSummaryCard
-                              pathLabel={pathLabels[1]}
-                              pathId="B"
-                              accentClass="text-blue"
-                              summary={pathDataB.synthesis.summary}
-                              footer={
-                                <ScoreRing
-                                  score={kpiStackProps.kpisB.overallScore}
-                                  pathLabel={pathLabels[1]}
-                                  pathTone="B"
-                                />
-                              }
-                            />
-                          </VizMapSideCanvas>
-                        ) : (
-                          <VizResultCard
+                        <VizMapSideCanvas side="right" vizType={vizType} pathLabel={pathLabels[1]}>
+                          <PathSummaryCard
                             pathLabel={pathLabels[1]}
                             pathId="B"
                             accentClass="text-blue"
-                            vizType={vizType}
-                            pathData={pathDataB}
-                            score={kpiStackProps.kpisB.overallScore}
-                            agentStates={agentStatesByPath.B}
-                            agents={pathDataB.agents}
+                            summary={pathDataB.synthesis.summary}
+                            footer={
+                              <ScoreRing
+                                score={kpiStackProps.kpisB.overallScore}
+                                pathLabel={pathLabels[1]}
+                                pathTone="B"
+                              />
+                            }
                           />
-                        )}
+                        </VizMapSideCanvas>
                       </motion.div>
                     </RightPanelSlot>
                   </div>
@@ -876,7 +834,7 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                       aria-label="Deep dive compressed Path A strip"
                       className="min-h-24 rounded-xl border border-border bg-surface p-3 lg:min-h-auto"
                     >
-                      <VizMapSideCanvas side="left" vizType={vizType}>
+                      <VizMapSideCanvas side="left" vizType={vizType} pathLabel={pathLabels[0]}>
                         <motion.div
                           initial={{ opacity: 0, x: -8 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -908,7 +866,7 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                       aria-label="Deep dive compressed Path B strip"
                       className="min-h-24 rounded-xl border border-border bg-surface p-3 lg:min-h-auto"
                     >
-                      <VizMapSideCanvas side="right" vizType={vizType}>
+                      <VizMapSideCanvas side="right" vizType={vizType} pathLabel={pathLabels[1]}>
                         <motion.div
                           initial={{ opacity: 0, x: 8 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -945,51 +903,6 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
         </div>
       </MotionConfig>
     </UiShellContext.Provider>
-  );
-}
-
-function VizResultCard({
-  pathLabel,
-  pathId,
-  accentClass,
-  vizType,
-  pathData,
-  score,
-  agentStates,
-  agents,
-}: {
-  pathLabel: string;
-  pathId: "A" | "B";
-  accentClass: string;
-  vizType: VizType;
-  pathData: PathData;
-  score: number;
-  agentStates: AgentState[];
-  /** When provided, shows a grounding distribution summary for FR28 (AC1). */
-  agents?: AgentOutput[];
-}) {
-  const groundLine = agents ? summarizeGroundingDistribution(agents, pathLabel) : null;
-  return (
-    <div className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-surface p-4">
-      <h3 className={`shrink-0 font-heading text-h3 ${accentClass}`}>{pathLabel}</h3>
-      <p className="shrink-0 text-caption text-text-dim">Path {pathId}</p>
-      <div className="mt-3 flex min-h-0 flex-1 flex-col">
-        <VizRouter
-          viz_type={vizType}
-          pathData={pathData}
-          pathLabel={pathLabel}
-          agentStates={agentStates}
-        />
-      </div>
-      {groundLine ? (
-        <p className="mt-2 shrink-0 text-caption text-text-dim" data-testid={`viz-result-card-grounding-${pathId}`}>
-          {groundLine}
-        </p>
-      ) : null}
-      <div className="mt-4 flex shrink-0 flex-col items-center border-t border-border/50 pt-4">
-        <ScoreRing score={score} pathLabel={pathLabel} pathTone={pathId} />
-      </div>
-    </div>
   );
 }
 

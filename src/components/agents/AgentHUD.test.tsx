@@ -74,6 +74,6 @@ describe("AgentHUD", () => {
     );
     expect(screen.getByText("Low margin risk")).toBeInTheDocument();
     expect(screen.getByText(/From your inputs/i)).toBeInTheDocument();
-    expect(screen.getByText("81%")).toBeInTheDocument();
+    expect(screen.getByText(/81%\s*conf\./)).toBeInTheDocument();
   });
 });
