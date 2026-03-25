@@ -4,14 +4,20 @@ import { AGENT_ROLES } from "@/lib/types";
 const {
   mockClassifyDecision,
   mockRunParallelAgents,
+  mockSynthesizePath,
   MockProviderTimeoutError,
   MockProviderError,
   MockParseError,
   MockAgentPartialFailureError,
+  MockSynthesisTimeoutError,
+  MockSynthesisProviderError,
+  MockSynthesisParseError,
+  MockSynthesisValidationError,
 } =
   vi.hoisted(() => {
     const classify = vi.fn();
     const runAgents = vi.fn();
+    const synthesize = vi.fn();
     class ProviderTimeoutError extends Error {
       constructor(message = "LLM provider timed out.") {
         super(message);
@@ -45,13 +51,46 @@ const {
       }
     }
 
+    class SynthesisParseError extends Error {
+      constructor(message = "Synthesis response could not be parsed.") {
+        super(message);
+        this.name = "SynthesisParseError";
+      }
+    }
+
+    class SynthesisTimeoutError extends Error {
+      constructor(message = "Synthesis execution timed out.") {
+        super(message);
+        this.name = "SynthesisTimeoutError";
+      }
+    }
+
+    class SynthesisProviderError extends Error {
+      constructor(message = "Synthesis provider returned an error.") {
+        super(message);
+        this.name = "SynthesisProviderError";
+      }
+    }
+
+    class SynthesisValidationError extends Error {
+      constructor(message = "Synthesis response failed validation.") {
+        super(message);
+        this.name = "SynthesisValidationError";
+      }
+    }
+
     return {
       mockClassifyDecision: classify,
       mockRunParallelAgents: runAgents,
+      mockSynthesizePath: synthesize,
       MockProviderTimeoutError: ProviderTimeoutError,
       MockProviderError: ProviderError,
       MockParseError: ParseError,
       MockAgentPartialFailureError: AgentPartialFailureError,
+      MockSynthesisTimeoutError: SynthesisTimeoutError,
+      MockSynthesisProviderError: SynthesisProviderError,
+      MockSynthesisParseError: SynthesisParseError,
+      MockSynthesisValidationError: SynthesisValidationError,
     };
   });
 
@@ -65,6 +104,14 @@ vi.mock("@/lib/classifier", () => ({
 vi.mock("@/lib/agents", () => ({
   runParallelAgents: mockRunParallelAgents,
   AgentPartialFailureError: MockAgentPartialFailureError,
+}));
+
+vi.mock("@/lib/synthesis", () => ({
+  synthesizePath: mockSynthesizePath,
+  SynthesisTimeoutError: MockSynthesisTimeoutError,
+  SynthesisProviderError: MockSynthesisProviderError,
+  SynthesisParseError: MockSynthesisParseError,
+  SynthesisValidationError: MockSynthesisValidationError,
 }));
 
 import type { NextRequest } from "next/server";
@@ -95,6 +142,7 @@ describe("POST /api/simulate", () => {
     process.env.SIMULATION_TIMEOUT_MS = "30000";
     mockClassifyDecision.mockReset();
     mockRunParallelAgents.mockReset();
+    mockSynthesizePath.mockReset();
     mockClassifyDecision.mockResolvedValue({
       path_labels: { A: "Option A", B: "Option B" },
       viz_type: "flow",
@@ -115,6 +163,54 @@ describe("POST /api/simulate", () => {
           grounding: "supplied",
         })),
       },
+    });
+    mockSynthesizePath.mockImplementation(async ({ pathLabel }: { pathLabel: string }) => {
+      if (pathLabel === "Option A") {
+        return {
+          synthesis: {
+            summary: "Path A synthesized summary",
+            timeline: [
+              { month: 1, narrative: "A month 1", drivers: ["Customer"] },
+              { month: 3, narrative: "A month 3", drivers: ["Market"] },
+            ],
+          },
+          kpis: {
+            revenueImpact: 10,
+            risk: 38,
+            customerImpact: 22,
+            operatingCosts: 420,
+            competitiveExposure: 44,
+            opportunityCost: "Loses partner channel speed.",
+            overallScore: 62,
+          },
+          telemetry: {
+            llmCalls: 1,
+            estimatedCostEur: 0.018,
+          },
+        };
+      }
+      return {
+        synthesis: {
+          summary: "Path B synthesized summary",
+          timeline: [
+            { month: 1, narrative: "B month 1", drivers: ["Customer"] },
+            { month: 3, narrative: "B month 3", drivers: ["Market"] },
+          ],
+        },
+        kpis: {
+          revenueImpact: 16,
+          risk: 28,
+          customerImpact: 31,
+          operatingCosts: 180,
+          competitiveExposure: 29,
+          opportunityCost: "Loses digital ad learning.",
+          overallScore: 74,
+        },
+        telemetry: {
+          llmCalls: 1,
+          estimatedCostEur: 0.018,
+        },
+      };
     });
   });
 
@@ -169,7 +265,14 @@ describe("POST /api/simulate", () => {
     expect(json.paths.A.agents).toHaveLength(4);
     expect(json.paths.B.agents).toHaveLength(4);
     expect(json.paths.A.agents[0].insight).toContain("Path A insight");
+    expect(json.paths.A.synthesis.summary).toBe("Path A synthesized summary");
+    expect(json.paths.B.synthesis.summary).toBe("Path B synthesized summary");
+    expect(json.comparison.winnerByKpi.revenueImpact).toBe("B");
+    expect(json.comparison.overallWinner).toBe("B");
+    expect(json.meta.llmCalls).toBe(11);
+    expect(json.meta.cachedReplay).toBe(false);
     expect(mockRunParallelAgents).toHaveBeenCalledTimes(1);
+    expect(mockSynthesizePath).toHaveBeenCalledTimes(2);
   });
 
   it("returns 400 for missing decision", async () => {
@@ -290,5 +393,21 @@ describe("POST /api/simulate", () => {
     expect(json.status).toBe("error");
     expect(json.error.code).toBe("RATE_LIMITED");
     expect(json.error.recoverable).toBe(true);
+  });
+
+  it("returns 502 when synthesis parsing fails", async () => {
+    mockSynthesizePath.mockReset();
+    mockSynthesizePath.mockRejectedValue(new MockSynthesisParseError());
+
+    const response = await POST(
+      asNextRequest(makeRequest({ decision: "Should we open a new channel?" }, "10.0.0.45")),
+    );
+    const json = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(json.status).toBe("error");
+    expect(json.error.code).toBe("SYNTHESIS_PARSE_ERROR");
+    expect(json.error.recoverable).toBe(true);
+    expect(json.recovery).toEqual({ canUseCache: true, fallbackViz: true });
   });
 });

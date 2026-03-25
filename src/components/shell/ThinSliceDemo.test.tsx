@@ -11,6 +11,20 @@ const makeSuccessResponse = (pathA = "Path A", pathB = "Path B") => ({
     Promise.resolve({
       path_labels: { A: pathA, B: pathB },
       viz_type: "flow",
+      paths: {
+        A: {
+          agents: [{ role: "Analyst", insight: "A insight", confidence: 0.7, grounding: "mixed" }],
+          synthesis: { summary: "Path A synthesis summary.", timeline: [] },
+          kpis: { revenueImpact: 10, risk: 30, customerImpact: 40, operatingCosts: 200, competitiveExposure: 25, opportunityCost: "A opportunity cost.", overallScore: 70 },
+        },
+        B: {
+          agents: [{ role: "Analyst", insight: "B insight", confidence: 0.8, grounding: "supplied" }],
+          synthesis: { summary: "Path B synthesis summary.", timeline: [] },
+          kpis: { revenueImpact: 15, risk: 20, customerImpact: 50, operatingCosts: 150, competitiveExposure: 18, opportunityCost: "B opportunity cost.", overallScore: 80 },
+        },
+      },
+      comparison: { overallWinner: "B", winnerByKpi: { revenueImpact: "B", risk: "B", customerImpact: "B", overallScore: "B" } },
+      meta: { latencyMs: 1234, llmCalls: 11, estimatedCostEur: 0.14, fallbackUsed: false, cachedReplay: false, generatedAt: "2026-03-25T00:00:00Z" },
     }),
 });
 
@@ -71,14 +85,14 @@ describe("ThinSliceDemo", () => {
     await waitFor(
       () =>
         expect(
-          screen.getByRole("region", { name: /mock comparison dashboard/i }),
+          screen.getByRole("region", { name: /comparison dashboard/i }),
         ).toBeInTheDocument(),
       { timeout: 4000 },
     );
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard");
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "completed");
-    expect(screen.getByText(/KPIs: estimated/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$1\.24M/)).toBeInTheDocument();
+    expect(screen.getByText(/overall winner/i)).toBeInTheDocument();
+    expect(screen.getByText(/Path B synthesis summary/i)).toBeInTheDocument();
   });
 
   it("shows running stage with three-panel slots via dev panel", async () => {
@@ -119,7 +133,7 @@ describe("ThinSliceDemo", () => {
 
     await waitFor(
       () =>
-        expect(screen.getByRole("region", { name: /mock comparison dashboard/i })).toBeInTheDocument(),
+        expect(screen.getByRole("region", { name: /comparison dashboard/i })).toBeInTheDocument(),
       { timeout: 4000 },
     );
     expect(screen.getAllByTestId("slot-left-panel").length).toBeGreaterThanOrEqual(1);
@@ -216,10 +230,10 @@ describe("ThinSliceDemo", () => {
     await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
 
     await waitFor(
-      () => expect(screen.getByText("Open Berlin office")).toBeInTheDocument(),
+      () => expect(screen.getAllByText("Open Berlin office").length).toBeGreaterThan(0),
       { timeout: 4000 },
     );
-    expect(screen.getByText("Expand remote team")).toBeInTheDocument();
+    expect(screen.getAllByText("Expand remote team").length).toBeGreaterThan(0);
   });
 
   it("shows error banner and falls back to estimated results when API fails", async () => {

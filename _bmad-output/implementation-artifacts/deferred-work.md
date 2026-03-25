@@ -37,6 +37,13 @@
 - `max_tokens: 220` is tight for JSON output with all required fields plus a meaningful insight sentence; complex responses may truncate mid-JSON producing silent `AgentParseError` slot failures. Revisit token budget in Epic 6 or when tuning agent quality.
 - `new OpenAI({ apiKey })` is instantiated inside `runParallelAgents` on every simulation request; no connection reuse or singleton pattern. Extract to a factory or module-level singleton in a future performance pass.
 
+## Deferred from: code review of 2-4-per-path-synthesis-kpi-assembly-telemetry (2026-03-25)
+
+- `max_tokens: 500` hardcoded in `synthesizePath` — timeline with 6 verbose entries plus summary and KPIs could approach or exceed 500 tokens, causing truncated JSON → `SynthesisParseError` → 502. Errors are handled, but the token budget may be too tight for complex scenarios. Revisit in Epic 6 quality/tuning pass.
+- Hardcoded constant `8` for agent LLM calls in telemetry math (`route.ts` llmCalls assembly) — silently wrong if agent slot count ever changes. Consider deriving from `agentRun.agentsByPath.A.length + agentRun.agentsByPath.B.length`.
+- `progress` field in the live response is fully sourced from `MOCK_SIMULATION_RESPONSE` — agent_states always `["complete","complete","complete","complete"]` and `agents_per_path: 4` from fixture. Correct for a completed run but mock data leaking into production payload. Proper assembly deferred to Epic 6 streaming/progress story.
+- Unnecessary spread of `MOCK_SIMULATION_RESPONSE.paths.{A,B}` when building the live response — all three `PathData` fields (`agents`, `synthesis`, `kpis`) are explicitly overridden, making the spread dead weight. Consider removing the spread if `PathData` is confirmed to have no additional fields.
+
 ## Deferred from: code review of 2-1-simulate-api-route-scaffold-environment-wiring (2026-03-24)
 
 - Rate limiter `store` in `rate-limit.ts` accumulates Map entries for every unique IP that has ever made a request; old timestamps are evicted but the key is never removed. Memory grows proportionally to the number of unique IPs over the process lifetime. Acceptable for MVP/hackathon; revisit if a persistent rate-limit store (e.g. Redis) is added.

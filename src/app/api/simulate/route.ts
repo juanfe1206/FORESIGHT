@@ -5,6 +5,14 @@ import {
   ProviderTimeoutError,
 } from "@/lib/classifier";
 import { AgentPartialFailureError, runParallelAgents } from "@/lib/agents";
+import {
+  SynthesisParseError,
+  SynthesisProviderError,
+  SynthesisTimeoutError,
+  SynthesisValidationError,
+  synthesizePath,
+} from "@/lib/synthesis";
+import { overallWinner, winnerByKpi } from "@/lib/scoring";
 import type { ErrorResponse, SimulationResponse } from "@/lib/types";
 import { MOCK_SIMULATION_RESPONSE } from "@/lib/mock-fixture";
 import type { NextRequest } from "next/server";
@@ -51,6 +59,26 @@ const getClientIp = (request: Request): string => {
   return forwardedFor.split(",")[0]?.trim() || "unknown";
 };
 
+const validateSimulationResponse = (value: unknown): value is SimulationResponse => {
+  if (typeof value !== "object" || value === null) return false;
+  const res = value as SimulationResponse;
+
+  if (!res.runId || !res.path_labels?.A || !res.path_labels?.B) return false;
+  if (!res.paths?.A || !res.paths?.B) return false;
+  if (!res.paths.A.synthesis?.summary || !res.paths.B.synthesis?.summary) return false;
+  if (!res.paths.A.kpis || !res.paths.B.kpis) return false;
+  if (!res.comparison?.overallWinner || !res.comparison?.winnerByKpi) return false;
+  if (!res.meta?.generatedAt || typeof res.meta.latencyMs !== "number") return false;
+  return true;
+};
+
+const buildEstimatedCost = (synthesisCosts: [number, number]): number => {
+  const classifyCostEur = 0.008;
+  const agentCostEur = 8 * 0.012;
+  const total = classifyCostEur + agentCostEur + synthesisCosts[0] + synthesisCosts[1];
+  return Number(total.toFixed(3));
+};
+
 export async function POST(request: NextRequest): Promise<Response> {
   try {
     const ip = getClientIp(request);
@@ -89,6 +117,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     const agentModel = process.env.LLM_MODEL_AGENT ?? model;
     const timeoutMs = Number(process.env.SIMULATION_TIMEOUT_MS ?? "30000");
     const concurrency = Number(process.env.AGENT_CONCURRENCY_LIMIT ?? "4") || 4;
+    const startedAt = Date.now();
 
     try {
       const { path_labels, viz_type, roles } = await classifyDecision(
@@ -108,6 +137,38 @@ export async function POST(request: NextRequest): Promise<Response> {
         concurrency,
       });
 
+      const [pathA, pathB] = await Promise.all([
+        synthesizePath({
+          pathLabel: path_labels.A,
+          agents: agentRun.agentsByPath.A,
+          context: validation.data.context,
+          apiKey: process.env.LLM_API_KEY,
+          model: agentModel,
+          timeoutMs,
+        }),
+        synthesizePath({
+          pathLabel: path_labels.B,
+          agents: agentRun.agentsByPath.B,
+          context: validation.data.context,
+          apiKey: process.env.LLM_API_KEY,
+          model: agentModel,
+          timeoutMs,
+        }),
+      ]);
+
+      const comparison = {
+        winnerByKpi: winnerByKpi(pathA.kpis, pathB.kpis),
+        overallWinner: overallWinner(pathA.kpis, pathB.kpis),
+      } as const;
+
+      const latencyMs = Date.now() - startedAt;
+      const llmCalls = 1 + 8 + pathA.telemetry.llmCalls + pathB.telemetry.llmCalls;
+      const estimatedCostEur = buildEstimatedCost([
+        pathA.telemetry.estimatedCostEur,
+        pathB.telemetry.estimatedCostEur,
+      ]);
+      const generatedAt = new Date().toISOString();
+
       const responseBody: SimulationResponse = {
         ...MOCK_SIMULATION_RESPONSE,
         runId: `run_${Date.now()}`,
@@ -115,10 +176,40 @@ export async function POST(request: NextRequest): Promise<Response> {
         viz_type,
         path_labels,
         paths: {
-          A: { ...MOCK_SIMULATION_RESPONSE.paths.A, agents: agentRun.agentsByPath.A },
-          B: { ...MOCK_SIMULATION_RESPONSE.paths.B, agents: agentRun.agentsByPath.B },
+          A: {
+            ...MOCK_SIMULATION_RESPONSE.paths.A,
+            agents: agentRun.agentsByPath.A,
+            synthesis: pathA.synthesis,
+            kpis: pathA.kpis,
+          },
+          B: {
+            ...MOCK_SIMULATION_RESPONSE.paths.B,
+            agents: agentRun.agentsByPath.B,
+            synthesis: pathB.synthesis,
+            kpis: pathB.kpis,
+          },
+        },
+        comparison,
+        meta: {
+          ...MOCK_SIMULATION_RESPONSE.meta,
+          latencyMs,
+          llmCalls,
+          estimatedCostEur,
+          fallbackUsed: false,
+          cachedReplay: false,
+          generatedAt,
         },
       };
+
+      if (!validateSimulationResponse(responseBody)) {
+        return createErrorResponse(
+          "RESPONSE_VALIDATION_ERROR",
+          "Simulation output failed schema validation.",
+          true,
+          502,
+          CLASSIFY_RECOVERY,
+        );
+      }
 
       return Response.json(responseBody, { status: 200 });
     } catch (error) {
@@ -157,6 +248,33 @@ export async function POST(request: NextRequest): Promise<Response> {
           502,
           CLASSIFY_RECOVERY,
           { failures: error.failures },
+        );
+      }
+      if (error instanceof SynthesisTimeoutError) {
+        return createErrorResponse(
+          "SYNTHESIS_TIMEOUT",
+          "Synthesis timed out while assembling results.",
+          true,
+          504,
+          CLASSIFY_RECOVERY,
+        );
+      }
+      if (error instanceof SynthesisProviderError) {
+        return createErrorResponse(
+          "SYNTHESIS_PROVIDER_ERROR",
+          "Synthesis provider unavailable.",
+          true,
+          502,
+          CLASSIFY_RECOVERY,
+        );
+      }
+      if (error instanceof SynthesisParseError || error instanceof SynthesisValidationError) {
+        return createErrorResponse(
+          "SYNTHESIS_PARSE_ERROR",
+          "Could not assemble simulation synthesis.",
+          true,
+          502,
+          CLASSIFY_RECOVERY,
         );
       }
       throw error;
