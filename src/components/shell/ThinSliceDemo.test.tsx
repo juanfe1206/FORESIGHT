@@ -148,6 +148,26 @@ describe("ThinSliceDemo", () => {
     expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "deepDive");
   });
 
+  it("Read Full Story opens deep dive and Back returns to dashboard", async () => {
+    const user = userEvent.setup();
+    render(<ThinSliceDemo />);
+    await user.selectOptions(screen.getByLabelText(/dev: uistage/i), "dashboard");
+    await waitFor(() => {
+      expect(screen.getByTestId("read-full-story-btn")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId("read-full-story-btn"));
+    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "deepDive");
+    expect(screen.getByTestId("deep-dive-shell")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Invest in Instagram ads/i })).toHaveAttribute("aria-selected", "true");
+
+    await user.click(screen.getByTestId("back-to-dashboard-btn"));
+    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard");
+    expect(
+      screen.getByRole("region", { name: /mock comparison dashboard/i }),
+    ).toBeInTheDocument();
+  });
+
   // D3: Error/fallback are overlays — stage shell remains visible beneath them
   it("shows error and fallback banners as overlays while stage slots remain visible", async () => {
     const user = userEvent.setup();

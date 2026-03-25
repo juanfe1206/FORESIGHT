@@ -15,8 +15,10 @@ import { UiShellContext } from "@/lib/ui-shell-context";
 import { MOCK_BAKERY_MAP_FIXTURE } from "@/lib/mock-fixture";
 import type { VizType } from "@/lib/types";
 import { buildThinSliceMockComparison } from "@/lib/thin-slice-mock";
+import { DeepDivePanel, DeepDiveStrip } from "@/components/narrative";
 import { MapHalf } from "@/components/viz/MapView";
 import { ModeBadge } from "@/components/running/ModeBadge";
+import { MOCK_DEEP_DIVE_PROPS } from "@/lib/integration-contracts";
 import { CenterPanelSlot, LeftPanelSlot, RightPanelSlot } from "./PanelSlots";
 import { SimulationShell } from "./SimulationShell";
 import { VizMapSideCanvas } from "./VizMapSideCanvas";
@@ -443,13 +445,23 @@ export function ThinSliceDemo() {
                       </VizMapSideCanvas>
                     </RightPanelSlot>
                   </div>
-                  <button
-                    type="button"
-                    onClick={resetToInput}
-                    className="w-full rounded-lg border border-border py-3 text-body text-text transition hover:border-accent hover:text-accent sm:mx-auto sm:max-w-xs"
-                  >
-                    Start over
-                  </button>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-center sm:gap-4">
+                    <button
+                      type="button"
+                      data-testid="read-full-story-btn"
+                      onClick={() => setUiStage("deepDive")}
+                      className="min-h-10 rounded-lg bg-accent px-6 py-3 font-heading text-body font-semibold text-bg transition hover:opacity-90"
+                    >
+                      Read Full Story
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetToInput}
+                      className="min-h-10 rounded-lg border border-border px-6 py-3 text-body text-text transition hover:border-accent hover:text-accent"
+                    >
+                      Start over
+                    </button>
+                  </div>
                 </motion.section>
               )}
 
@@ -473,27 +485,61 @@ export function ThinSliceDemo() {
                       className="min-h-24 rounded-xl border border-border bg-surface p-3 lg:min-h-auto"
                     >
                       <VizMapSideCanvas side="left" vizType={vizType}>
-                        <p className="text-caption text-text-dim">Compressed strip — Path A context</p>
+                        <motion.div
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={springTransition}
+                          className="h-full"
+                        >
+                          <DeepDiveStrip
+                            pathLabel={pathLabels[0]}
+                            score={MOCK_DEEP_DIVE_PROPS.pathA.kpis.overallScore}
+                            summary={MOCK_DEEP_DIVE_PROPS.pathA.synthesis.summary}
+                          />
+                        </motion.div>
                       </VizMapSideCanvas>
                     </LeftPanelSlot>
                     <CenterPanelSlot
                       aria-label="Deep dive narrative and tab container slot"
                       className="min-h-64 rounded-xl border border-border bg-surface p-6 lg:min-h-auto"
                     >
-                      <p className="font-heading text-h3 text-text">Deep dive</p>
-                      <p className="mt-2 text-body text-text-dim">
-                        Expanded center — narrative / tabs mount here (skeletal).
-                      </p>
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ ...springTransition, delay: 0.05 }}
+                        className="h-full min-h-0"
+                      >
+                        <DeepDivePanel {...MOCK_DEEP_DIVE_PROPS} viz_type={vizType} />
+                      </motion.div>
                     </CenterPanelSlot>
                     <RightPanelSlot
                       aria-label="Deep dive compressed Path B strip"
                       className="min-h-24 rounded-xl border border-border bg-surface p-3 lg:min-h-auto"
                     >
                       <VizMapSideCanvas side="right" vizType={vizType}>
-                        <p className="text-caption text-text-dim">Compressed strip — Path B context</p>
+                        <motion.div
+                          initial={{ opacity: 0, x: 8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={springTransition}
+                          className="h-full"
+                        >
+                          <DeepDiveStrip
+                            pathLabel={pathLabels[1]}
+                            score={MOCK_DEEP_DIVE_PROPS.pathB.kpis.overallScore}
+                            summary={MOCK_DEEP_DIVE_PROPS.pathB.synthesis.summary}
+                          />
+                        </motion.div>
                       </VizMapSideCanvas>
                     </RightPanelSlot>
                   </div>
+                  <button
+                    type="button"
+                    data-testid="back-to-dashboard-btn"
+                    onClick={() => setUiStage("dashboard")}
+                    className="w-full rounded-lg border border-border px-6 py-3 text-body text-text transition hover:border-accent hover:text-accent sm:mx-auto sm:max-w-xs sm:w-auto"
+                  >
+                    ← Back to comparison
+                  </button>
                 </motion.section>
               )}
 

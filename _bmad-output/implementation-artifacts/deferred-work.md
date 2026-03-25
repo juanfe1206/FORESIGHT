@@ -56,3 +56,18 @@
 - `queueMicrotask` state updates may run after unmount during animation cleanup. React 18+ no-throw; low risk in practice.
 - `MapFallback` loading placeholder has `aria-hidden` hiding "Loading map…" from screen readers. Accessibility enhancement; not in story scope.
 - Redundant explicit `viz_type="map"` prop inside `vizType === "map"` branch in `ThinSliceDemo`. Style concern, not a logic bug; VizSlotProps requires the field.
+
+## Deferred from: code review of 4-3-deep-dive-panel-path-tabs-narrative-with-attribution (2026-03-25)
+
+- Fixed element IDs in `PathTabs` (`tab-path-a`, `panel-path-a`, etc.) break ARIA if more than one PathTabs mounts in a page. Low risk for current single-use, but non-unique IDs are technically invalid HTML.
+- Home/End keyboard navigation not handled in `PathTabs`. ARIA authoring practices recommend these keys for first/last tab; only ArrowLeft/ArrowRight are required by AC4.
+- No null guard on `AGENT_ROLES[viz_type]` in `getDriverSlotIndex` — TypeScript `VizType` union enforces valid keys at compile time; runtime risk only if types are violated.
+- No null guard on `driver` before `toLowerCase()` call — `drivers: string[]` type enforces non-null; runtime risk only if types are violated.
+- `DeepDiveStrip` applies both manual 120-char truncation and `line-clamp-4` — double truncation can interact awkwardly but is functionally belt-and-suspenders.
+- Score display hardcodes `"/ 100"` without clamping or validation — acceptable for mock phase; real integration should validate score range.
+- `expect(() => render()).not.toThrow()` is a weak test guard — many React failures surface as console errors rather than thrown exceptions.
+- `MOCK_DEEP_DIVE_PROPS` hardwired in `ThinSliceDemo` — no boundary between demo scaffolding and future real prop integration; intentional for this mock phase story.
+- No test for empty or missing `synthesis.timeline` — contract-compliant mock is always non-empty; real data edge case testing deferred to integration story.
+- Integration test in `ThinSliceDemo.test.tsx` relies on dev-only stage select control — dev tooling is by design for the thin slice demo.
+- `SLOT_BG` only covers indices 0–3; a `viz_type` with more than 4 agent roles would silently fall back to `bg-text-dim`.
+- Attribution dots use HTML `title` only — not reliably announced by all screen readers, but is within AC5 spec. Consider `aria-label` per dot in a future accessibility pass.
