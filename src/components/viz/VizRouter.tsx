@@ -21,12 +21,11 @@ function MapFlowPlaceholder({ viz_type, pathLabel }: VizSlotProps) {
     >
       <p className="font-heading text-caption font-medium text-text-dim">{title}</p>
       <p className="text-caption text-text-dim">
-        Full visualization ships in Epic {viz_type === "map" ? "4" : "3"}. This path:{" "}
-        <span className="text-text">{pathLabel}</span>
+        {viz_type === "map"
+          ? "Map rendered via MapHalf in the shell."
+          : "Full resource-flow visualization ships in Epic 3."}{" "}
+        This path: <span className="text-text">{pathLabel}</span>
       </p>
-      <span className="text-2xl opacity-40" aria-hidden>
-        {viz_type === "map" ? "🗺️" : "→"}
-      </span>
     </div>
   );
 }

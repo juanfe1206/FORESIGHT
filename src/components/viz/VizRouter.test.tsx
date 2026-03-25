@@ -19,8 +19,10 @@ function withShell(runStatus: UiShellContextValue["runStatus"], node: ReactNode)
       value={{
         uiStage: "running",
         runStatus,
+        vizType: "map",
         setUiStage: () => {},
         setRunStatus: () => {},
+        setVizType: () => {},
       }}
     >
       {node}

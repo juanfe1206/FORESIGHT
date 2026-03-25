@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { AGENT_ROLES, isVizType } from "./types";
+import { AGENT_ROLES } from "./types";
 import type { VizType } from "./types";
+import { isVizType } from "./ui-state";
 
 describe("AGENT_ROLES", () => {
   const VIZ_TYPES: VizType[] = ["map", "flow", "network", "fallback"];
