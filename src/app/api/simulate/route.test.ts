@@ -377,7 +377,8 @@ describe("POST /api/simulate", () => {
 
   it("returns 429 when a single IP exceeds the rate limit", async () => {
     const ip = "10.0.0.5";
-    for (let attempt = 0; attempt < 10; attempt += 1) {
+    // Aligned with rate-limit.ts: MAX_REQUESTS per 60s window (currently 30).
+    for (let attempt = 0; attempt < 30; attempt += 1) {
       const response = await POST(
         asNextRequest(makeRequest({ decision: `Decision ${attempt}` }, ip)),
       );
@@ -385,7 +386,7 @@ describe("POST /api/simulate", () => {
     }
 
     const blockedResponse = await POST(
-      asNextRequest(makeRequest({ decision: "11th call should be blocked" }, ip)),
+      asNextRequest(makeRequest({ decision: "31st call should be blocked" }, ip)),
     );
     const json = await blockedResponse.json();
 
