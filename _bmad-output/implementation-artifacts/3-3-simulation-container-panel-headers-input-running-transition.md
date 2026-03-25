@@ -1,6 +1,6 @@
 # Story 3.3: Simulation Container, Panel Headers & Input→Running Transition
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -99,6 +99,20 @@ _trace: FR13 (SimulationContainer), UX-DR6 (PanelHeader path labels), UX-DR14 (D
 - Architecture: `_bmad-output/planning-artifacts/architecture.md` — §3 components, §6 `viz_type` routing.  
 - Contracts: `docs/integration-contracts.md` — C1 `VizSlotProps`; `src/lib/integration-contracts.ts`.  
 - Prior stories: `_bmad-output/implementation-artifacts/3-2-simulate-cta-submit-wiring.md`, `_bmad-output/implementation-artifacts/1-4-parallel-integration-contract-ownership-boundaries.md`.
+
+### Review Findings
+
+- [x] [Review][Defer] Choreography total duration overshoots ~1.2s spec — AnimatePresence mode="wait" causes input exit (0.45s) to complete before running enter (0.68s + panels 1.1s + stagger 0.14s), totalling ~1.69s; AC1/UX-DR15 specifies "~1.2s total perceived sequence" [src/components/shell/ThinSliceDemo.tsx, src/components/shell/SimulationContainer.tsx] — deferred, treat ~1.2s as soft guideline; revisit in a UX motion polish pass
+- [x] [Review][Defer] Panel stagger fires left→right (delays 0, 0.07, 0.14s); spec implies center-out expansion ("expand from center / stagger children") — AC1/UX-DR14 [src/components/shell/SimulationContainer.tsx] — deferred, left-to-right reading order is defensible; revisit with design in a UX polish pass
+- [x] [Review][Patch] `pathData.synthesis.summary` accessed without optional chaining — crashes if `pathData` or `synthesis` is absent [src/components/viz/FlowView/FlowView.tsx]
+- [x] [Review][Patch] `VizRouter` default branch returns `_exhaustive` (type `never`) which renders as a raw text node at runtime if an unexpected `viz_type` string bypasses TypeScript [src/components/viz/VizRouter.tsx]
+- [x] [Review][Defer] No integration tests for `SimulationContainer` (aria-labels, stagger, VizRouter wiring) — deferred, pre-existing gap in shell test coverage
+- [x] [Review][Defer] `derivePathLabels` lacks unit tests for `vs`-pattern, multi-pipe, 48-char truncation, and 3+-alternative decisions [src/lib/derive-path-labels.ts] — deferred, pre-existing
+- [x] [Review][Defer] `isVizType` array in ThinSliceDemo duplicates `VizType` union — adding a type variant without updating the array silently drops options in dev select [src/components/shell/ThinSliceDemo.tsx] — deferred, dev-only risk
+- [x] [Review][Defer] `ThinSliceDemo.test.tsx` covers pipe-pattern labels only; no `vs`-pattern heading assertion [src/components/shell/ThinSliceDemo.test.tsx] — deferred, partial coverage
+- [x] [Review][Defer] `MOCK_BAKERY_MAP_FIXTURE` fed to all `viz_type` branches in dev preview — misleads shape assumptions for non-map modes [src/components/shell/ThinSliceDemo.tsx] — deferred, dev-only cosmetic
+- [x] [Review][Defer] `PanelHeader` renders a blank `<header>` region if `title=""` is passed — no defensive fallback [src/components/shell/PanelHeader.tsx] — deferred, no current callers pass empty title
+- [x] [Review][Defer] `PanelHeader` `accentClassName` and `headingLevel` props have no test coverage [src/components/shell/PanelHeader.test.tsx] — deferred, contract gap
 
 ## Dev Agent Record
 

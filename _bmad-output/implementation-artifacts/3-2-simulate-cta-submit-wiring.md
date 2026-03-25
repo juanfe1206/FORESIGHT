@@ -1,6 +1,6 @@
 # Story 3.2: Simulate CTA & Submit Wiring
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -92,6 +92,12 @@ _trace: FR3, UX-DR4 (GlowButton affordances), UX-DR22 (submit perceived response
 - Architecture: `_bmad-output/planning-artifacts/architecture.md` — §3 components, run lifecycle.  
 - Prior story: `_bmad-output/implementation-artifacts/3-1-decision-form-context-fields.md`.  
 - Shell contracts: `_bmad-output/implementation-artifacts/1-4-parallel-integration-contract-ownership-boundaries.md`.
+
+### Review Findings
+
+- [x] [Review][Patch] `{...rest}` spread after explicit props allows callers to override `aria-busy`, `disabled`, and `className` [src/components/shared/GlowButton.tsx]
+- [x] [Review][Defer] `focus-visible` ring differs from form inputs (full `ring-accent` + `ring-offset` vs inputs' `ring-accent/30`, no offset) [src/components/shared/GlowButton.tsx] — deferred, defensible deviation for button-on-accent styling; spec says "consistent with" not "identical to"
+- [x] [Review][Defer] Microtask in `onValidSubmit` does not re-check `runStatus === "submitting"` before advancing to `inProgress` [src/components/shell/ThinSliceDemo.tsx] — deferred, dev-preview only concern; production path has no concurrent state change possible in that window
 
 ## Dev Agent Record
 

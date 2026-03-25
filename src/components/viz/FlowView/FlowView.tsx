@@ -27,7 +27,9 @@ export function FlowView({ pathLabel, pathData }: FlowViewProps) {
         Flow visualization for {pathLabel}
       </h2>
       <FlowHalf pathData={pathData} model={model} />
-      <p className="mt-2 line-clamp-3 text-caption text-text-dim">{pathData.synthesis.summary}</p>
+      {pathData.synthesis?.summary ? (
+        <p className="mt-2 line-clamp-3 text-caption text-text-dim">{pathData.synthesis.summary}</p>
+      ) : null}
     </div>
   );
 }

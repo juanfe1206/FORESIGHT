@@ -25,12 +25,12 @@ export const GlowButton = forwardRef<HTMLButtonElement, GlowButtonProps>(functio
 
   return (
     <button
+      {...rest}
       ref={ref}
       type={type}
       disabled={disabled || loading}
       aria-busy={isBusy}
       className={mergedClassName}
-      {...rest}
     >
       {loading ? (
         <>

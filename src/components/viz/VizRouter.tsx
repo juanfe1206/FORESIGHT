@@ -32,7 +32,8 @@ export function VizRouter(props: VizSlotProps) {
       );
     default: {
       const _exhaustive: never = viz_type;
-      return _exhaustive;
+      void _exhaustive;
+      return null;
     }
   }
 }
