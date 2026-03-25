@@ -115,6 +115,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const model = process.env.LLM_MODEL_PARSE_CLASSIFY ?? "gpt-4o-mini";
     const agentModel = process.env.LLM_MODEL_AGENT ?? model;
+    const synthesisModel = process.env.LLM_MODEL_SYNTHESIS ?? agentModel;
     const timeoutMs = Number(process.env.SIMULATION_TIMEOUT_MS ?? "30000");
     const concurrency = Number(process.env.AGENT_CONCURRENCY_LIMIT ?? "4") || 4;
     const startedAt = Date.now();
@@ -143,7 +144,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           agents: agentRun.agentsByPath.A,
           context: validation.data.context,
           apiKey: process.env.LLM_API_KEY,
-          model: agentModel,
+          model: synthesisModel,
           timeoutMs,
         }),
         synthesizePath({
@@ -151,7 +152,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           agents: agentRun.agentsByPath.B,
           context: validation.data.context,
           apiKey: process.env.LLM_API_KEY,
-          model: agentModel,
+          model: synthesisModel,
           timeoutMs,
         }),
       ]);
