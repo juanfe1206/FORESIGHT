@@ -90,3 +90,33 @@
 - Integration test in `ThinSliceDemo.test.tsx` relies on dev-only stage select control — dev tooling is by design for the thin slice demo.
 - `SLOT_BG` only covers indices 0–3; a `viz_type` with more than 4 agent roles would silently fall back to `bg-text-dim`.
 - Attribution dots use HTML `title` only — not reliably announced by all screen readers, but is within AC5 spec. Consider `aria-label` per dot in a future accessibility pass.
+
+## Deferred from: code review of 5-1-agent-hud-agent-nodes (2026-03-25)
+
+- `viz_type` accepted by `AgentHudSlotProps` but intentionally discarded inside `AgentHUD` (`void _vizType`). Epic 5 network/fallback views may differentiate layout by viz type; address when those stories are implemented.
+- `pathsAllComplete` hard-codes `length === 4` guard. Will silently never trigger KPI preview if array length drifts; enforce contract at the call site or add a runtime assertion when path counts generalise.
+- No CSS glow/shadow on the thinking-state animation (UX-DR24 specifies pulse/glow). Pulse (opacity+scale) is implemented; glow is a visual polish item for a future a11y/UX refinement pass.
+- `aria-live="polite"` + `aria-atomic="false"` with long concatenated announcement string may be verbose for AT users. Acceptable at MVP; consider per-change atomic snippets in a dedicated a11y pass.
+- 24 `setTimeout` + functional `setAgentStatesByPath` updates fire during the mock run. Performance acceptable at this component density; profile and batch if jank is observed on low-end hardware.
+- `AgentNode` default switch branches return raw state string / null icon for unknown `AgentState` values. TypeScript union prevents this in practice; add exhaustiveness assertion (`assertNever`) if the union expands.
+
+## Deferred from: code review of 5-2-kpi-comparison-stack-supporting-primitives (2026-03-25)
+
+- `CountUpNumber` initial "0%" flash on first frame — inherent to count-from-zero design; not a defect. Revisit if product feedback indicates visible jank on slow hardware.
+- `CountUpNumber` no internal NaN guard — guarded at all callsites via `Number.isFinite`; internal defensive guard worth adding if the component is reused outside KPICard in future.
+- `line-clamp-5` silently truncates long narrative KPIs in `KPICard` — acceptable with current fixture data; revisit when real API `opportunityCost` strings arrive to assess actual line lengths.
+
+## Deferred from: code review of 5-3-score-rings-simulation-dashboard-transition (2026-03-25)
+
+- Choreography constants (`KPI_STACK_ROW_COUNT`, `KPI_COUNT_UP_DURATION_S`, `WINNER_BADGE_DELAY_S`) in `dashboard-choreography.ts` manually duplicate values from KpiStack row defs, CountUpNumber default, and WinnerBadge — no compile-time enforcement; silent drift risk if any source changes.
+- `CountUpNumber` has no guard for non-finite `value` prop (NaN → renders "NaN") — pre-existing; ScoreRing's `clampOverallScore` prevents exposure in this story's path. Add internal guard when reuse expands.
+- `progressbar` `aria-valuenow` announces final score from first render while count-up animates — acceptable ARIA progressbar pattern; the arc animation visually indicates progress. Low user impact.
+- SSR/hydration risk from `useReducedMotionConfig` in "use client" components — pre-existing pattern project-wide; App Router "use client" directive constrains to client rendering.
+- `cx` variable used for both cx and cy SVG attributes in ScoreRing — misleading for non-square viewBox cases; not a correctness bug with current square layout.
+- Test timing assertions in `ScoreRing.test.tsx` are loose (no minimum delay check, some reduced-motion coverage is redundant) — acceptable for current MVP test coverage level.
+
+## Deferred from: code review of 5-4-network-view-fallback-visualization (2026-03-25)
+
+- Hub label text (8px) inside scaling `motion.g` in `NetworkView` may appear blurry on sub-retina displays — visual preference, not a spec violation; revisit in a UX polish pass.
+- `VizRenderErrorBoundary` `key` reset on `pathLabel`/`viz_type` change causes full animation entry replay in dev preview — intentional boundary reset design; acceptable at MVP.
+- `runCardClassLeft`/`runCardClassRight` extended via Tailwind string concatenation in `ThinSliceDemo` — class conflict risk if base class strings evolve; pre-existing project composition pattern, revisit if `cn()` utility is adopted project-wide.

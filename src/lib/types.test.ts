@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AGENT_ROLES } from "./types";
+import { AGENT_ROLES, isVizType } from "./types";
 import type { VizType } from "./types";
 
 describe("AGENT_ROLES", () => {
@@ -9,5 +9,13 @@ describe("AGENT_ROLES", () => {
       expect(AGENT_ROLES[vt]).toHaveLength(4);
       expect(AGENT_ROLES[vt].every((r) => typeof r === "string" && r.length > 0)).toBe(true);
     }
+  });
+});
+
+describe("isVizType", () => {
+  it("narrows known viz modes", () => {
+    expect(isVizType("network")).toBe(true);
+    expect(isVizType("map")).toBe(true);
+    expect(isVizType("bogus")).toBe(false);
   });
 });

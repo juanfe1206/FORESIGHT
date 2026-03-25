@@ -9,6 +9,8 @@
   --blue: #2196f3;
   --red: #ff4757;
   --gold: #ffd700;
+  /* Network viz mode accent (UX spec — relationship / graph tone) */
+  --purple: #b47cff;
   --text: #f0f4f8;
   --text-dim: #8892a0;
 }
@@ -22,6 +24,7 @@
   --color-blue: var(--blue);
   --color-red: var(--red);
   --color-gold: var(--gold);
+  --color-purple: var(--purple);
   --color-text: var(--text);
   --color-text-dim: var(--text-dim);
 

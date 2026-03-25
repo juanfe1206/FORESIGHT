@@ -69,11 +69,11 @@ development_status:
   4-3-deep-dive-panel-path-tabs-narrative-with-attribution: done
   epic-4-retrospective: optional
 
-  epic-5: backlog
-  5-1-agent-hud-agent-nodes: backlog
-  5-2-kpi-comparison-stack-supporting-primitives: backlog
-  5-3-score-rings-simulation-dashboard-transition: backlog
-  5-4-network-view-fallback-visualization: backlog
+  epic-5: done
+  5-1-agent-hud-agent-nodes: done
+  5-2-kpi-comparison-stack-supporting-primitives: done
+  5-3-score-rings-simulation-dashboard-transition: done
+  5-4-network-view-fallback-visualization: done
   epic-5-retrospective: optional
 
   epic-6: backlog

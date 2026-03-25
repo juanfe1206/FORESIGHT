@@ -1,7 +1,20 @@
 "use client";
 
-import { AnimatePresence, MotionConfig, motion } from "framer-motion";
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  AnimatePresence,
+  MotionConfig,
+  motion,
+  useReducedMotionConfig,
+} from "framer-motion";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import type { AgentOutput, KPIs, PathSynthesis, SimulationResponse } from "@/lib/types";
 import {
   RUN_MOCK_MS,
@@ -13,12 +26,19 @@ import {
   type UiStage,
 } from "@/lib/ui-state";
 import { UiShellContext } from "@/lib/ui-shell-context";
+import { AgentHUD } from "@/components/agents/AgentHUD";
+import { KpiStack } from "@/components/dashboard/KpiStack";
+import { ScoreRing } from "@/components/dashboard/ScoreRing";
+import { READ_FULL_STORY_DELAY_S } from "@/lib/dashboard-choreography";
+import { MOCK_KPI_STACK_PROPS, MOCK_DEEP_DIVE_PROPS } from "@/lib/integration-contracts";
+import type { KpiStackSlotProps } from "@/lib/integration-contracts";
+import { VizRouter } from "@/components/viz/VizRouter";
+import { AGENT_ROLES } from "@/lib/types";
+import type { AgentState, VizType } from "@/lib/types";
 import { MOCK_BAKERY_MAP_FIXTURE } from "@/lib/mock-fixture";
-import type { VizType } from "@/lib/types";
 import { DeepDivePanel, DeepDiveStrip } from "@/components/narrative";
 import { MapHalf } from "@/components/viz/MapView";
 import { ModeBadge } from "@/components/running/ModeBadge";
-import { MOCK_DEEP_DIVE_PROPS } from "@/lib/integration-contracts";
 import { CenterPanelSlot, LeftPanelSlot, RightPanelSlot } from "./PanelSlots";
 import { SimulationShell } from "./SimulationShell";
 import { VizMapSideCanvas } from "./VizMapSideCanvas";
@@ -75,12 +95,12 @@ function VizOrientationBand({ vizType }: { vizType: VizType }) {
 
 export function ThinSliceDemo() {
   const isDevPreviewEnabled = process.env.NODE_ENV !== "production";
+  const reducedMotionResolved = useReducedMotionConfig();
+  const readStoryDelay = reducedMotionResolved === true ? 0 : READ_FULL_STORY_DELAY_S;
 
-  // P2: Guard queueMicrotask setter against component unmount
   const isMountedRef = useRef(true);
   useEffect(() => () => { isMountedRef.current = false; }, []);
 
-  // Skip the mock timer when a real API call is in flight
   const isApiCallRef = useRef(false);
 
   const [uiStage, setUiStage] = useState<UiStage>(initialUiShellState.uiStage);
@@ -94,7 +114,34 @@ export function ThinSliceDemo() {
   const [comparison, setComparison] = useState<SimulationResponse["comparison"] | null>(null);
   const [meta, setMeta] = useState<SimulationResponse["meta"] | null>(null);
 
-  // Build deep-dive props from live results when available; fall back to mock fixture.
+  const dormantRow = useMemo(
+    (): [AgentState, AgentState, AgentState, AgentState] => [
+      "dormant",
+      "dormant",
+      "dormant",
+      "dormant",
+    ],
+    [],
+  );
+
+  const [agentStatesByPath, setAgentStatesByPath] = useState<{
+    A: AgentState[];
+    B: AgentState[];
+  }>(() => ({ A: [...dormantRow], B: [...dormantRow] }));
+
+  const insightsByPath = useMemo(() => {
+    const short = (s: string) => s.trim().split(/\s+/).slice(0, 4).join(" ");
+    return {
+      A: MOCK_BAKERY_MAP_FIXTURE.paths.A.agents.map((a) => short(a.insight)),
+      B: MOCK_BAKERY_MAP_FIXTURE.paths.B.agents.map((a) => short(a.insight)),
+    };
+  }, []);
+
+  const hudPathLabels = useMemo(
+    () => ({ A: pathLabels[0], B: pathLabels[1] }),
+    [pathLabels],
+  );
+
   const deepDiveProps = (synthesisResults && kpiResults && agentResults)
     ? {
         pathA: { agents: agentResults.A, synthesis: synthesisResults.A, kpis: kpiResults.A },
@@ -103,29 +150,68 @@ export function ThinSliceDemo() {
       }
     : MOCK_DEEP_DIVE_PROPS;
 
+  const kpiStackProps = useMemo(
+    (): KpiStackSlotProps => ({
+      ...MOCK_KPI_STACK_PROPS,
+      pathLabels: hudPathLabels,
+    }),
+    [hudPathLabels],
+  );
+
   useEffect(() => {
     if (uiStage !== "running" || runStatus !== "inProgress") return;
     if (isApiCallRef.current) return;
-    const id = window.setTimeout(() => {
-      setPathLabels(derivePathLabels(decision));
-      setUiStage("dashboard");
-      setRunStatus("completed");
-    }, RUN_MOCK_MS);
-    return () => window.clearTimeout(id);
-  }, [uiStage, runStatus, decision]);
+
+    setAgentStatesByPath({ A: [...dormantRow], B: [...dormantRow] });
+
+    const ids: number[] = [];
+
+    const setSlot = (path: "A" | "B", index: number, state: AgentState) => {
+      setAgentStatesByPath((prev) => {
+        const nextA = [...prev.A];
+        const nextB = [...prev.B];
+        if (path === "A") nextA[index] = state;
+        else nextB[index] = state;
+        return { A: nextA, B: nextB };
+      });
+    };
+
+    for (let i = 0; i < 4; i++) {
+      const baseA = 120 + i * 400;
+      ids.push(window.setTimeout(() => setSlot("A", i, "thinking"), baseA));
+      ids.push(window.setTimeout(() => setSlot("A", i, "insight"), baseA + 300));
+      ids.push(window.setTimeout(() => setSlot("A", i, "complete"), baseA + 620));
+    }
+
+    for (let i = 0; i < 4; i++) {
+      const baseB = 380 + i * 520;
+      ids.push(window.setTimeout(() => setSlot("B", i, "thinking"), baseB));
+      ids.push(window.setTimeout(() => setSlot("B", i, "insight"), baseB + 360));
+      ids.push(window.setTimeout(() => setSlot("B", i, "complete"), baseB + 720));
+    }
+
+    ids.push(
+      window.setTimeout(() => {
+        if (!isMountedRef.current) return;
+        setPathLabels(derivePathLabels(decision));
+        setUiStage("dashboard");
+        setRunStatus("completed");
+      }, RUN_MOCK_MS),
+    );
+
+    return () => ids.forEach((id) => window.clearTimeout(id));
+  }, [uiStage, runStatus, decision, dormantRow]);
 
   const onSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
 
-      // Optimistic labels shown immediately during the running phase
       const optimisticLabels = derivePathLabels(decision);
       setPathLabels(optimisticLabels);
 
       isApiCallRef.current = true;
       setUiStage("running");
       setRunStatus("submitting");
-      // P2: Check mount status before the async state update
       queueMicrotask(() => { if (isMountedRef.current) setRunStatus("inProgress"); });
 
       let finalLabels: [string, string] = optimisticLabels;
@@ -199,16 +285,13 @@ export function ThinSliceDemo() {
     else if (next === "deepDive") setRunStatus("idle");
   }, []);
 
-  // D2: Bidirectional reconciliation — runStatus change also infers the matching uiStage
   const onDevRunStatusChange = useCallback((next: UiRunStatus) => {
     setRunStatus(next);
     if (next === "idle") setUiStage("input");
     else if (next === "submitting" || next === "inProgress") setUiStage("running");
     else if (next === "completed") setUiStage("dashboard");
-    // "error" and "fallback" leave uiStage unchanged so the stage shell stays visible beneath the banner
   }, []);
 
-  // P1: Runtime-validated select handlers — guard against stale option strings after future enum changes
   const handleUiStageSelectChange = useCallback(
     (ev: React.ChangeEvent<HTMLSelectElement>) => {
       const v = ev.target.value;
@@ -231,7 +314,6 @@ export function ThinSliceDemo() {
   }, []);
 
   return (
-    // D1: Provide live uiStage / runStatus to the subtree (satisfies AC1)
     <UiShellContext.Provider value={{ uiStage, runStatus, vizType, setUiStage, setRunStatus, setVizType }}>
       <MotionConfig reducedMotion="user">
         <div
@@ -257,7 +339,6 @@ export function ThinSliceDemo() {
                 <label htmlFor="dev-ui-stage" className="font-medium text-text">
                   Dev: uiStage
                 </label>
-                {/* P1: validated onChange */}
                 <select
                   id="dev-ui-stage"
                   value={uiStage}
@@ -274,7 +355,6 @@ export function ThinSliceDemo() {
                 <label htmlFor="dev-run-status" className="font-medium text-text">
                   runStatus
                 </label>
-                {/* P1: validated onChange */}
                 <select
                   id="dev-run-status"
                   value={runStatus}
@@ -312,11 +392,6 @@ export function ThinSliceDemo() {
           )}
 
           <main className="flex flex-1 flex-col px-6 py-8 lg:px-10">
-            {/*
-              D3: Error/fallback rendered as status banners, NOT as replacements for stage content.
-              The stage shell (uiStage branch below) remains visible underneath, preserving AC6:
-              dev preview of any uiStage is unobstructed regardless of runStatus.
-            */}
             {runStatus === "error" && (
               <div
                 data-testid="error-shell"
@@ -344,7 +419,6 @@ export function ThinSliceDemo() {
               </div>
             )}
 
-            {/* Stage shell — always rendered; error/fallback banners sit above as overlays */}
             <AnimatePresence mode="wait">
               {uiStage === "input" && (
                 <motion.section
@@ -388,9 +462,8 @@ export function ThinSliceDemo() {
                   role="region"
                   aria-label="Simulation running"
                   initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={springTransition}
+                  animate={{ opacity: 1, transition: springTransition }}
+                  exit={{ opacity: 0, transition: { duration: 0.3, ease: "easeInOut" } }}
                   className="flex flex-1 flex-col gap-4"
                 >
                   <VizOrientationBand vizType={vizType} />
@@ -410,10 +483,17 @@ export function ThinSliceDemo() {
                           <motion.article
                             {...panelMotion}
                             transition={springTransition}
-                            className={runCardClassLeft}
+                            className={`${runCardClassLeft} min-h-0 flex-1`}
                           >
-                            <h2 className="font-heading text-h3 text-accent">{pathLabels[0]}</h2>
-                            <p className="mt-2 text-caption text-text-dim">Path A — framing</p>
+                            <h2 className="shrink-0 font-heading text-h3 text-accent">{pathLabels[0]}</h2>
+                            <div className="mt-3 flex min-h-0 flex-1 flex-col">
+                              <VizRouter
+                                viz_type={vizType}
+                                pathData={MOCK_BAKERY_MAP_FIXTURE.paths.A}
+                                pathLabel={pathLabels[0]}
+                                agentStates={agentStatesByPath.A}
+                              />
+                            </div>
                           </motion.article>
                         )}
                       </VizMapSideCanvas>
@@ -424,8 +504,13 @@ export function ThinSliceDemo() {
                         transition={{ ...springTransition, delay: 0.05 }}
                         className={runCardClassCenter}
                       >
-                        <h2 className="font-heading text-h3 text-text">Intelligence</h2>
-                        <p className="mt-auto text-body text-text-dim">Simulating…</p>
+                        <AgentHUD
+                          viz_type={vizType}
+                          roles={[...AGENT_ROLES[vizType]]}
+                          pathLabels={hudPathLabels}
+                          agentStatesByPath={agentStatesByPath}
+                          insightsByPath={insightsByPath}
+                        />
                       </motion.article>
                     }
                     right={
@@ -440,10 +525,17 @@ export function ThinSliceDemo() {
                           <motion.article
                             {...panelMotion}
                             transition={{ ...springTransition, delay: 0.1 }}
-                            className={runCardClassRight}
+                            className={`${runCardClassRight} min-h-0 flex-1`}
                           >
-                            <h2 className="font-heading text-h3 text-blue">{pathLabels[1]}</h2>
-                            <p className="mt-2 text-caption text-text-dim">Path B — framing</p>
+                            <h2 className="shrink-0 font-heading text-h3 text-blue">{pathLabels[1]}</h2>
+                            <div className="mt-3 flex min-h-0 flex-1 flex-col">
+                              <VizRouter
+                                viz_type={vizType}
+                                pathData={MOCK_BAKERY_MAP_FIXTURE.paths.B}
+                                pathLabel={pathLabels[1]}
+                                agentStates={agentStatesByPath.B}
+                              />
+                            </div>
                           </motion.article>
                         )}
                       </VizMapSideCanvas>
@@ -469,20 +561,20 @@ export function ThinSliceDemo() {
                       className="order-1 lg:order-1"
                     >
                       <VizMapSideCanvas side="left" vizType={vizType}>
-                        <motion.div {...panelMotion} transition={springTransition} className="flex flex-col gap-4">
-                          <KpiCard
-                            title={pathLabels[0]}
-                            subtitle="Path A"
-                            kpis={kpiResults?.A ?? null}
-                            isWinner={comparison?.overallWinner === "A"}
+                        <motion.div {...panelMotion} transition={springTransition} className="h-full">
+                          <PathSummaryCard
+                            pathLabel={pathLabels[0]}
+                            pathId="A"
                             accentClass="text-accent"
+                            summary={synthesisResults?.A?.summary ?? MOCK_BAKERY_MAP_FIXTURE.paths.A.synthesis.summary}
+                            footer={
+                              <ScoreRing
+                                score={kpiStackProps.kpisA.overallScore}
+                                pathLabel={pathLabels[0]}
+                                pathTone="A"
+                              />
+                            }
                           />
-                          {synthesisResults?.A && (
-                            <SynthesisSummary summary={synthesisResults.A.summary} accentClass="text-accent" />
-                          )}
-                          {agentResults?.A && (
-                            <AgentInsightList agents={agentResults.A} accentClass="text-accent" />
-                          )}
                         </motion.div>
                       </VizMapSideCanvas>
                     </LeftPanelSlot>
@@ -493,22 +585,17 @@ export function ThinSliceDemo() {
                       <motion.div
                         {...panelMotion}
                         transition={{ ...springTransition, delay: 0.05 }}
-                        className="rounded-xl border border-border bg-surface p-6 text-center"
+                        className="rounded-xl border border-border bg-surface p-4 sm:p-6"
                       >
-                        <p className="font-heading text-h3 text-text">Comparison</p>
-                        {vizType && (
-                          <span className="mt-3 inline-block rounded-full bg-accent/10 px-3 py-1 font-mono text-caption uppercase tracking-wide text-accent">
-                            {vizType}
-                          </span>
-                        )}
-                        {comparison ? (
-                          <div className="mt-4 flex flex-col gap-2">
+                        <KpiStack {...kpiStackProps} />
+                        {comparison && (
+                          <div className="mt-4 flex flex-col items-center gap-2 border-t border-border pt-4">
                             <p className="text-caption text-text-dim">Overall winner</p>
                             <p className={`font-heading text-h3 ${comparison.overallWinner === "A" ? "text-accent" : "text-blue"}`}>
                               {comparison.overallWinner === "A" ? pathLabels[0] : pathLabels[1]}
                             </p>
                             {meta && (
-                              <dl className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
+                              <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
                                 <div>
                                   <dt className="text-caption text-text-dim">Latency</dt>
                                   <dd className="font-mono text-caption text-text">{meta.latencyMs}ms</dd>
@@ -524,11 +611,26 @@ export function ThinSliceDemo() {
                               </dl>
                             )}
                           </div>
-                        ) : (
-                          <p className="mt-3 text-caption text-text-dim">
-                            {agentResults ? "Agents: live · awaiting synthesis" : "Awaiting simulation results"}
-                          </p>
                         )}
+                      </motion.div>
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{
+                          delay: readStoryDelay,
+                          duration: reducedMotionResolved === true ? 0.01 : 0.35,
+                          ease: "easeOut",
+                        }}
+                        className="mt-4 flex justify-center px-1"
+                      >
+                        <button
+                          type="button"
+                          data-testid="read-full-story-cta"
+                          className="rounded-lg bg-accent px-6 py-3 font-heading text-body font-semibold text-bg transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                          onClick={() => setUiStage("deepDive")}
+                        >
+                          Read full story
+                        </button>
                       </motion.div>
                     </CenterPanelSlot>
                     <RightPanelSlot
@@ -539,21 +641,21 @@ export function ThinSliceDemo() {
                         <motion.div
                           {...panelMotion}
                           transition={{ ...springTransition, delay: 0.1 }}
-                          className="flex flex-col gap-4"
+                          className="h-full"
                         >
-                          <KpiCard
-                            title={pathLabels[1]}
-                            subtitle="Path B"
-                            kpis={kpiResults?.B ?? null}
-                            isWinner={comparison?.overallWinner === "B"}
+                          <PathSummaryCard
+                            pathLabel={pathLabels[1]}
+                            pathId="B"
                             accentClass="text-blue"
+                            summary={synthesisResults?.B?.summary ?? MOCK_BAKERY_MAP_FIXTURE.paths.B.synthesis.summary}
+                            footer={
+                              <ScoreRing
+                                score={kpiStackProps.kpisB.overallScore}
+                                pathLabel={pathLabels[1]}
+                                pathTone="B"
+                              />
+                            }
                           />
-                          {synthesisResults?.B && (
-                            <SynthesisSummary summary={synthesisResults.B.summary} accentClass="text-blue" />
-                          )}
-                          {agentResults?.B && (
-                            <AgentInsightList agents={agentResults.B} accentClass="text-blue" />
-                          )}
                         </motion.div>
                       </VizMapSideCanvas>
                     </RightPanelSlot>
@@ -656,8 +758,6 @@ export function ThinSliceDemo() {
                 </motion.section>
               )}
 
-              {/* P3: Exhaustive fallback — TypeScript union guarantees this is unreachable,
-                  but guards against invalid values introduced via unchecked casts at runtime. */}
               {!["input", "running", "dashboard", "deepDive"].includes(uiStage) && (
                 <div key="unknown" role="region" aria-label="Unknown stage">
                   <p className="text-caption text-text-dim">Unknown uiStage — check state.</p>
@@ -668,6 +768,33 @@ export function ThinSliceDemo() {
         </div>
       </MotionConfig>
     </UiShellContext.Provider>
+  );
+}
+
+function PathSummaryCard({
+  pathLabel,
+  pathId,
+  accentClass,
+  summary,
+  footer,
+}: {
+  pathLabel: string;
+  pathId: "A" | "B";
+  accentClass: string;
+  summary: string;
+  footer?: ReactNode;
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-surface p-4">
+      <h3 className={`font-heading text-h3 ${accentClass}`}>{pathLabel}</h3>
+      <p className="text-caption text-text-dim">Path {pathId}</p>
+      <p className="mt-4 flex-1 text-body leading-snug text-text">{summary}</p>
+      {footer ? (
+        <div className="mt-6 flex shrink-0 flex-col items-center border-t border-border/50 pt-4">
+          {footer}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
