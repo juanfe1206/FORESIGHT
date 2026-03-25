@@ -41,3 +41,18 @@
 - AC3 compliance (no "waiting for Epic 6" wording in `epics.md`) not verified within this diff; planning artifact outside the changeset.
 - Module-level fixture null-safety not guarded at runtime; TypeScript `satisfies SimulationResponse` provides compile-time coverage — no runtime issue expected.
 - Dual public names `MOCK_BAKERY_MAP_FIXTURE` / `MOCK_SIMULATION_RESPONSE` could cause import drift over time. Alias is intentional per spec; consider consolidating in a future cleanup pass.
+
+## Deferred from: code review of 4-2-map-view-geographic-simulation-split-screen (2026-03-25)
+
+- Dashboard strip does not mount `MapHalf` (AC1 parenthetical). Explicitly deferred to Epic 5 per story scope notes; dashboard VizMapSideCanvas children are KPI cards until Epic 5.
+- `mapbox-gl` CSS imported in root layout ships Mapbox styles to every route. Next.js App Router limitation; story-specified import location per dev notes.
+- No explicit empty-token UX guard in `MapScene`. Error boundary catches Mapbox init failure gracefully; first-class empty-config UX deferred.
+- Customer dot positions are nondeterministic (unseeded `Math.random()`). Visual QA concern; MVP acceptable per story scope — geographic accuracy is explicitly out of scope.
+- `CashFlowTicker` is not an ARIA live region. Accessibility enhancement; not in story scope for MVP.
+- Test quality: timing-heavy assertions and mock coverage illusion. jsdom cannot run WebGL; mocking strategy is explicitly documented in story dev notes.
+- Hardcoded `€` and `/mo` currency/unit strings in `CashFlowTicker`. i18n not in MVP scope.
+- Fixed Madrid `CENTER` for both paths. Explicitly documented MVP limitation; path-specific geocoding is future work.
+- `MapErrorBoundary` has no retry or recovery path. Retry is Epic 6 / NFR-I1 territory per story notes.
+- `queueMicrotask` state updates may run after unmount during animation cleanup. React 18+ no-throw; low risk in practice.
+- `MapFallback` loading placeholder has `aria-hidden` hiding "Loading map…" from screen readers. Accessibility enhancement; not in story scope.
+- Redundant explicit `viz_type="map"` prop inside `vizType === "map"` branch in `ThinSliceDemo`. Style concern, not a logic bug; VizSlotProps requires the field.

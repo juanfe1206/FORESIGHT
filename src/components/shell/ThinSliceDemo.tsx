@@ -15,6 +15,7 @@ import { UiShellContext } from "@/lib/ui-shell-context";
 import { MOCK_BAKERY_MAP_FIXTURE } from "@/lib/mock-fixture";
 import type { VizType } from "@/lib/types";
 import { buildThinSliceMockComparison } from "@/lib/thin-slice-mock";
+import { MapHalf } from "@/components/viz/MapView";
 import { ModeBadge } from "@/components/running/ModeBadge";
 import { CenterPanelSlot, LeftPanelSlot, RightPanelSlot } from "./PanelSlots";
 import { SimulationShell } from "./SimulationShell";
@@ -328,14 +329,22 @@ export function ThinSliceDemo() {
                     rightAriaLabel="Path B visualization slot"
                     left={
                       <VizMapSideCanvas side="left" vizType={vizType}>
-                        <motion.article
-                          {...panelMotion}
-                          transition={springTransition}
-                          className={runCardClassLeft}
-                        >
-                          <h2 className="font-heading text-h3 text-accent">{pathLabels[0]}</h2>
-                          <p className="mt-2 text-caption text-text-dim">Path A — framing</p>
-                        </motion.article>
+                        {vizType === "map" ? (
+                          <MapHalf
+                            viz_type="map"
+                            pathData={MOCK_BAKERY_MAP_FIXTURE.paths.A}
+                            pathLabel={pathLabels[0]}
+                          />
+                        ) : (
+                          <motion.article
+                            {...panelMotion}
+                            transition={springTransition}
+                            className={runCardClassLeft}
+                          >
+                            <h2 className="font-heading text-h3 text-accent">{pathLabels[0]}</h2>
+                            <p className="mt-2 text-caption text-text-dim">Path A — framing</p>
+                          </motion.article>
+                        )}
                       </VizMapSideCanvas>
                     }
                     center={
@@ -350,14 +359,22 @@ export function ThinSliceDemo() {
                     }
                     right={
                       <VizMapSideCanvas side="right" vizType={vizType}>
-                        <motion.article
-                          {...panelMotion}
-                          transition={{ ...springTransition, delay: 0.1 }}
-                          className={runCardClassRight}
-                        >
-                          <h2 className="font-heading text-h3 text-blue">{pathLabels[1]}</h2>
-                          <p className="mt-2 text-caption text-text-dim">Path B — framing</p>
-                        </motion.article>
+                        {vizType === "map" ? (
+                          <MapHalf
+                            viz_type="map"
+                            pathData={MOCK_BAKERY_MAP_FIXTURE.paths.B}
+                            pathLabel={pathLabels[1]}
+                          />
+                        ) : (
+                          <motion.article
+                            {...panelMotion}
+                            transition={{ ...springTransition, delay: 0.1 }}
+                            className={runCardClassRight}
+                          >
+                            <h2 className="font-heading text-h3 text-blue">{pathLabels[1]}</h2>
+                            <p className="mt-2 text-caption text-text-dim">Path B — framing</p>
+                          </motion.article>
+                        )}
                       </VizMapSideCanvas>
                     }
                   />

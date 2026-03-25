@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans, JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
