@@ -1,6 +1,30 @@
 import React, { Suspense, lazy, useEffect, type ComponentType, type ReactNode } from "react";
 import "@testing-library/jest-dom/vitest";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
+
+function installMemoryLocalStorage(): void {
+  const store = new Map<string, string>();
+  const memory: Storage = {
+    getItem: (key: string) => (store.has(key) ? store.get(key)! : null),
+    setItem: (key: string, value: string) => void store.set(key, String(value)),
+    removeItem: (key: string) => void store.delete(key),
+    clear: () => void store.clear(),
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    get length() {
+      return store.size;
+    },
+  };
+  vi.stubGlobal("localStorage", memory);
+}
+
+/* Node / jsdom can expose a partial Storage; tests that call `vi.unstubAllGlobals()` need a fresh stub each run. */
+installMemoryLocalStorage();
+beforeEach(() => {
+  if (typeof globalThis.localStorage?.setItem !== "function") {
+    installMemoryLocalStorage();
+  }
+  globalThis.localStorage.clear();
+});
 
 /* jsdom: SVGGeometryElement path sampling (used by FlowView particles). */
 if (typeof SVGPathElement !== "undefined") {

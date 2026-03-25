@@ -1,5 +1,5 @@
 # generated: 2026-03-24T21:34:57.5956932+01:00
-# last_updated: 2026-03-25T00:00:00.0000000+01:00
+# last_updated: 2026-03-25T17:00:00.0000000+01:00
 # project: FORESIGHT
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-24T21:34:57.5956932+01:00
-last_updated: 2026-03-25T00:00:00.0000000+01:00
+last_updated: 2026-03-25T17:00:00.0000000+01:00
 project: FORESIGHT
 project_key: NOKEY
 tracking_system: file-system
@@ -78,7 +78,7 @@ development_status:
 
   epic-6: in-progress
   6-1-end-to-end-client-api-integration-progress-updates: done
-  6-2-cached-golden-replay-bounded-client-cache: backlog
+  6-2-cached-golden-replay-bounded-client-cache: done
   6-3-transparency-confidence-non-advice-framing: backlog
   6-4-demo-scenarios-script-pre-demo-checklist: backlog
   epic-6-retrospective: optional

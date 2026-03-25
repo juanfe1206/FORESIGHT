@@ -155,3 +155,11 @@
 
 - `agents_per_path: 4` hardcoded in `route.ts` — not derived from actual agent count (`agentRun.agentsByPath.A.length`). In production AGENT_ROLES always yields 4 roles per viz type so it's always correct; but fragile if role counts ever change. Fix would be `agents_per_path: agentRun.agentsByPath.A.length`.
 - `...MOCK_SIMULATION_RESPONSE` top-level spread in `route.ts` is now dead code — all `SimulationResponse` fields are explicitly overridden after it. Pre-existing pattern; harmless. Remove in a dedicated cleanup refactor.
+
+## Deferred from: code review of 6-2-cached-golden-replay-bounded-client-cache (2026-03-25)
+
+- Stale cache entries not compacted on read — `readLatestValid` filters TTL in-memory but never rewrites storage; expired blobs accumulate until next successful `writeSuccess`. Minor quota inefficiency, no correctness impact.
+- `writeSuccess` read-modify-write race — two simultaneous microtask persist calls can interleave and drop one entry; localStorage is synchronous so this is extremely unlikely in practice; catch handles quota errors.
+- `NEXT_PUBLIC_*` build-time inlining not noted in source — `.env.example` implies runtime toggle but Next.js bakes the value at build time; no in-code warning for operators.
+- `synthesis.timeline` not validated as array in `validateSimulationResponse` — downstream `timeline.map` could throw on malformed data; no current callers trigger this path.
+- Global test `localStorage` stub may mask quota / private-mode behavior — in-memory stub in `setup.ts` hides Storage errors the production code explicitly handles.

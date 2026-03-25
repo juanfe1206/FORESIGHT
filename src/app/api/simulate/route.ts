@@ -15,6 +15,7 @@ import {
 import { overallWinner, winnerByKpi } from "@/lib/scoring";
 import type { AgentState, ErrorResponse, SimulationResponse } from "@/lib/types";
 import { MOCK_SIMULATION_RESPONSE } from "@/lib/mock-fixture";
+import { validateSimulationResponse } from "@/lib/validate-simulation-response";
 import type { NextRequest } from "next/server";
 import { checkRateLimit } from "./rate-limit";
 import { validateSimulationRequest } from "./validate";
@@ -57,19 +58,6 @@ const getClientIp = (request: Request): string => {
   }
 
   return forwardedFor.split(",")[0]?.trim() || "unknown";
-};
-
-const validateSimulationResponse = (value: unknown): value is SimulationResponse => {
-  if (typeof value !== "object" || value === null) return false;
-  const res = value as SimulationResponse;
-
-  if (!res.runId || !res.path_labels?.A || !res.path_labels?.B) return false;
-  if (!res.paths?.A || !res.paths?.B) return false;
-  if (!res.paths.A.synthesis?.summary || !res.paths.B.synthesis?.summary) return false;
-  if (!res.paths.A.kpis || !res.paths.B.kpis) return false;
-  if (!res.comparison?.overallWinner || !res.comparison?.winnerByKpi) return false;
-  if (!res.meta?.generatedAt || typeof res.meta.latencyMs !== "number") return false;
-  return true;
 };
 
 const buildEstimatedCost = (synthesisCosts: [number, number]): number => {

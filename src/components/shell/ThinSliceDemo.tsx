@@ -19,8 +19,15 @@ import {
   emptyDecisionFormState,
   type DecisionFormInputState,
 } from "@/components/input/DecisionForm";
-import type { AgentOutput, KPIs, PathData, PathSynthesis, SimulationResponse } from "@/lib/types";
-import type { SimulationRequest } from "@/lib/types";
+import type {
+  AgentOutput,
+  ErrorResponse,
+  KPIs,
+  PathData,
+  PathSynthesis,
+  SimulationRequest,
+  SimulationResponse,
+} from "@/lib/types";
 import {
   RUN_MOCK_MS,
   initialUiShellState,
@@ -48,6 +55,36 @@ import { ModeBadge } from "@/components/running/ModeBadge";
 import { CenterPanelSlot, LeftPanelSlot, RightPanelSlot } from "./PanelSlots";
 import { SimulationShell } from "./SimulationShell";
 import { VizMapSideCanvas } from "./VizMapSideCanvas";
+import { buildHydrationFromSimulationResponse } from "@/lib/hydrate-simulation-ui";
+import { GOLDEN_DEMO_SIMULATION_RESPONSE } from "@/lib/golden/golden-demo-simulation-response";
+import { parseSimulationErrorResponse } from "@/lib/parse-simulation-error-response";
+import { readLatestValid, writeSuccess } from "@/lib/simulation-client-cache";
+import { validateSimulationResponse } from "@/lib/validate-simulation-response";
+
+function isGoldenReplayBundledEnabled(): boolean {
+  // Default ON when unset (demo/hackathon); set NEXT_PUBLIC_ENABLE_GOLDEN_REPLAY="false" to disable bundled golden.
+  return process.env.NEXT_PUBLIC_ENABLE_GOLDEN_REPLAY !== "false";
+}
+
+function shouldAttemptClientReplay(
+  useCachedOnFailure: boolean | undefined,
+  errorBody: ErrorResponse | null,
+): boolean {
+  if (useCachedOnFailure === false) return false;
+  if (errorBody?.recovery?.canUseCache === false) return false;
+  return true;
+}
+
+function resolveReplaySimulationResponse(): SimulationResponse | null {
+  const cached = readLatestValid();
+  if (cached) return cached;
+  if (isGoldenReplayBundledEnabled()) return GOLDEN_DEMO_SIMULATION_RESPONSE;
+  return null;
+}
+
+export type ThinSliceDemoProps = {
+  simulationOptions?: SimulationRequest["options"];
+};
 
 const springTransition = { type: "spring" as const, stiffness: 320, damping: 28 };
 
@@ -74,7 +111,7 @@ function VizOrientationBand({ vizType }: { vizType: VizType }) {
   );
 }
 
-export function ThinSliceDemo() {
+export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
   const isDevPreviewEnabled = process.env.NODE_ENV !== "production";
   const reducedMotionResolved = useReducedMotionConfig();
   const reduceMotion = reducedMotionResolved === true;
@@ -85,9 +122,14 @@ export function ThinSliceDemo() {
     : { duration: 0.45, ease: [0.33, 1, 0.68, 1] as const };
 
   const isMountedRef = useRef(true);
-  useEffect(() => () => { isMountedRef.current = false; }, []);
+  const replayTimeoutRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    isMountedRef.current = false;
+    if (replayTimeoutRef.current !== null) window.clearTimeout(replayTimeoutRef.current);
+  }, []);
 
   const isApiCallRef = useRef(false);
+  const runningStartedAtRef = useRef<number | null>(null);
 
   const [uiStage, setUiStage] = useState<UiStage>(initialUiShellState.uiStage);
   const [runStatus, setRunStatus] = useState<UiRunStatus>(initialUiShellState.runStatus);
@@ -99,6 +141,17 @@ export function ThinSliceDemo() {
   const [kpiResults, setKpiResults] = useState<{ A: KPIs; B: KPIs } | null>(null);
   const [comparison, setComparison] = useState<SimulationResponse["comparison"] | null>(null);
   const [meta, setMeta] = useState<SimulationResponse["meta"] | null>(null);
+
+  const applySimulationResponse = useCallback((res: SimulationResponse, cachedReplay: boolean) => {
+    const slice = buildHydrationFromSimulationResponse(res, { cachedReplay });
+    setVizType(slice.vizType);
+    setPathLabels(slice.pathLabels);
+    setAgentResults(slice.agentResults);
+    setSynthesisResults(slice.synthesisResults);
+    setKpiResults(slice.kpiResults);
+    setComparison(slice.comparison);
+    setMeta(slice.meta);
+  }, []);
 
   const dormantRow = useMemo(
     (): [AgentState, AgentState, AgentState, AgentState] => [
@@ -212,63 +265,92 @@ export function ThinSliceDemo() {
       isApiCallRef.current = true;
       setRunStatus("submitting");
 
+      const scheduleReplayDashboard = (resolvedReplay: SimulationResponse) => {
+        const startedAt = runningStartedAtRef.current ?? Date.now();
+        const delay = Math.max(0, RUN_MOCK_MS - (Date.now() - startedAt));
+        replayTimeoutRef.current = window.setTimeout(() => {
+          replayTimeoutRef.current = null;
+          if (!isMountedRef.current) return;
+          isApiCallRef.current = false;
+          applySimulationResponse(resolvedReplay, true);
+          setUiStage("dashboard");
+          setRunStatus("fallback");
+        }, delay);
+      };
+
       queueMicrotask(() => {
         if (!isMountedRef.current) return;
+        runningStartedAtRef.current = Date.now();
         setUiStage("running");
         setRunStatus("inProgress");
 
-        (async () => {
-          let finalLabels: [string, string] = optimisticLabels;
-          let finalStatus: UiRunStatus = "completed";
-
+        void (async () => {
           try {
             const res = await fetch("/api/simulate", {
               method: "POST",
               headers: { "content-type": "application/json" },
-              body: JSON.stringify({ decision: decision.trim(), context }),
+              body: JSON.stringify({
+                decision: decision.trim(),
+                context,
+                ...(simulationOptions ? { options: simulationOptions } : {}),
+              }),
             });
-            const json = await res.json() as Partial<SimulationResponse>;
 
-            if (res.ok && json.path_labels?.A && json.path_labels?.B) {
-              finalLabels = [json.path_labels.A, json.path_labels.B];
-              if (json.viz_type !== undefined && isVizType(json.viz_type)) setVizType(json.viz_type);
-
-              const agentsA = json.paths?.A?.agents;
-              const agentsB = json.paths?.B?.agents;
-              if (agentsA?.length && agentsB?.length) {
-                setAgentResults({ A: agentsA, B: agentsB });
-              }
-
-              const synthA = json.paths?.A?.synthesis;
-              const synthB = json.paths?.B?.synthesis;
-              if (synthA && synthB) setSynthesisResults({ A: synthA, B: synthB });
-
-              const kpisA = json.paths?.A?.kpis;
-              const kpisB = json.paths?.B?.kpis;
-              if (kpisA && kpisB) setKpiResults({ A: kpisA, B: kpisB });
-
-              if (json.comparison) setComparison(json.comparison);
-              if (json.meta) setMeta(json.meta);
-            } else {
-              finalStatus = "error";
+            let body: unknown;
+            try {
+              body = await res.json();
+            } catch {
+              body = undefined;
             }
-          } catch {
-            finalStatus = "error";
-          }
 
-          if (!isMountedRef.current) {
+            if (!isMountedRef.current) {
+              isApiCallRef.current = false;
+              return;
+            }
+
+            if (res.ok && validateSimulationResponse(body)) {
+              applySimulationResponse(body, false);
+              writeSuccess(body);
+              isApiCallRef.current = false;
+              setUiStage("dashboard");
+              setRunStatus("completed");
+              return;
+            }
+
+            const err = parseSimulationErrorResponse(body);
+            const failureReplay = shouldAttemptClientReplay(simulationOptions?.useCachedOnFailure, err)
+              ? resolveReplaySimulationResponse()
+              : null;
+            if (failureReplay) {
+              scheduleReplayDashboard(failureReplay);
+              return;
+            }
+
             isApiCallRef.current = false;
-            return;
+            setPathLabels(optimisticLabels);
+            setUiStage("dashboard");
+            setRunStatus("error");
+          } catch {
+            if (!isMountedRef.current) {
+              isApiCallRef.current = false;
+              return;
+            }
+            const networkReplay = shouldAttemptClientReplay(simulationOptions?.useCachedOnFailure, null)
+              ? resolveReplaySimulationResponse()
+              : null;
+            if (networkReplay) {
+              scheduleReplayDashboard(networkReplay);
+              return;
+            }
+            isApiCallRef.current = false;
+            setPathLabels(optimisticLabels);
+            setUiStage("dashboard");
+            setRunStatus("error");
           }
-
-          isApiCallRef.current = false;
-          setPathLabels(finalLabels);
-          setUiStage("dashboard");
-          setRunStatus(finalStatus);
         })();
       });
     },
-    [],
+    [applySimulationResponse, simulationOptions],
   );
 
   const resetToInput = useCallback(() => {
@@ -419,10 +501,17 @@ export function ThinSliceDemo() {
                 aria-label="Fallback visualization shell"
                 className="mb-4 rounded-xl border border-dashed border-border bg-surface px-5 py-4"
               >
-                <p className="font-heading text-body font-semibold text-text">Fallback mode</p>
+                <p className="font-heading text-body font-semibold text-text">Replay / cached results</p>
                 <p className="mt-1 text-caption text-text-dim">
-                  Showing cached results — live simulation unavailable.
+                  Showing a saved or bundled simulation — not a live model run. Use this path when the API fails
+                  during a demo.
                 </p>
+                {meta?.cachedReplay ? (
+                  <p data-testid="cached-replay-hint" className="mt-2 text-caption text-text-dim">
+                    Telemetry flags this view as cached replay (<code className="rounded bg-bg px-1">meta.cachedReplay</code>
+                    ).
+                  </p>
+                ) : null}
               </div>
             )}
 

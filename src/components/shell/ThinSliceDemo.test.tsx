@@ -1,33 +1,94 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MotionConfig } from "framer-motion";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThinSliceDemo } from "./ThinSliceDemo";
 import { RUN_MOCK_MS } from "@/lib/ui-state";
+import { AGENT_ROLES } from "@/lib/types";
+import type { SimulationResponse } from "@/lib/types";
+import { __simulationCacheTestUtils } from "@/lib/simulation-client-cache";
+import { validateSimulationResponse } from "@/lib/validate-simulation-response";
 
 const mockFetch = vi.fn();
 
-const makeSuccessResponse = (pathA = "Path A", pathB = "Path B") => ({
-  ok: true,
-  json: () =>
-    Promise.resolve({
-      path_labels: { A: pathA, B: pathB },
-      viz_type: "flow",
-      paths: {
-        A: {
-          agents: [{ role: "Analyst", insight: "A insight", confidence: 0.7, grounding: "mixed" }],
-          synthesis: { summary: "Path A synthesis summary.", timeline: [] },
-          kpis: { revenueImpact: 10, risk: 30, customerImpact: 40, operatingCosts: 200, competitiveExposure: 25, opportunityCost: "A opportunity cost.", overallScore: 70 },
-        },
-        B: {
-          agents: [{ role: "Analyst", insight: "B insight", confidence: 0.8, grounding: "supplied" }],
-          synthesis: { summary: "Path B synthesis summary.", timeline: [] },
-          kpis: { revenueImpact: 15, risk: 20, customerImpact: 50, operatingCosts: 150, competitiveExposure: 18, opportunityCost: "B opportunity cost.", overallScore: 80 },
+const flowAgents = (insightPrefix: string) =>
+  AGENT_ROLES.flow.map((role) => ({
+    role,
+    insight: `${insightPrefix} ${role}`,
+    confidence: 0.72,
+    grounding: "mixed" as const,
+  }));
+
+const makeSuccessResponse = (pathA = "Path A", pathB = "Path B") => {
+  const body: SimulationResponse = {
+    runId: "run_test_fixture",
+    status: "completed",
+    viz_type: "flow",
+    path_labels: { A: pathA, B: pathB },
+    progress: {
+      agents_per_path: 4,
+      agent_states: {
+        A: ["complete", "complete", "complete", "complete"],
+        B: ["complete", "complete", "complete", "complete"],
+      },
+    },
+    paths: {
+      A: {
+        agents: flowAgents("A"),
+        synthesis: { summary: "Path A synthesis summary.", timeline: [] },
+        kpis: {
+          revenueImpact: 10,
+          risk: 30,
+          customerImpact: 40,
+          operatingCosts: 200,
+          competitiveExposure: 25,
+          opportunityCost: "A opportunity cost.",
+          overallScore: 70,
         },
       },
-      comparison: { overallWinner: "B", winnerByKpi: { revenueImpact: "B", risk: "B", customerImpact: "B", overallScore: "B" } },
-      meta: { latencyMs: 1234, llmCalls: 11, estimatedCostEur: 0.14, fallbackUsed: false, cachedReplay: false, generatedAt: "2026-03-25T00:00:00Z" },
-    }),
-});
+      B: {
+        agents: flowAgents("B"),
+        synthesis: { summary: "Path B synthesis summary.", timeline: [] },
+        kpis: {
+          revenueImpact: 15,
+          risk: 20,
+          customerImpact: 50,
+          operatingCosts: 150,
+          competitiveExposure: 18,
+          opportunityCost: "B opportunity cost.",
+          overallScore: 80,
+        },
+      },
+    },
+    comparison: {
+      overallWinner: "B",
+      winnerByKpi: {
+        revenueImpact: "B",
+        risk: "B",
+        customerImpact: "B",
+        operatingCosts: "B",
+        competitiveExposure: "B",
+        overallScore: "B",
+      },
+    },
+    meta: {
+      latencyMs: 1234,
+      llmCalls: 11,
+      estimatedCostEur: 0.14,
+      fallbackUsed: false,
+      cachedReplay: false,
+      generatedAt: "2026-03-25T00:00:00Z",
+      schemaVersion: __simulationCacheTestUtils.TRUSTED_SCHEMA_VERSION,
+    },
+  };
+  if (!validateSimulationResponse(body)) {
+    throw new Error("makeSuccessResponse: invalid fixture");
+  }
+  return {
+    ok: true,
+    json: () => Promise.resolve(body),
+  };
+};
 
 const delayedFetch = (response = makeSuccessResponse(), delayMs = 200) =>
   new Promise((resolve) => window.setTimeout(() => resolve(response), delayMs));
@@ -310,6 +371,7 @@ describe("ThinSliceDemo", () => {
   });
 
   it("shows error banner and falls back to estimated results when API fails", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_GOLDEN_REPLAY", "false");
     mockFetch.mockRejectedValue(new TypeError("Network error"));
     const user = userEvent.setup();
     render(<ThinSliceDemo />);
@@ -362,4 +424,116 @@ describe("ThinSliceDemo", () => {
       { timeout: 7000 },
     );
   }, 15000);
+
+  it("replays cached SimulationResponse on fetch failure (golden disabled)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_GOLDEN_REPLAY", "false");
+    const cached = makeSuccessResponse("Cached Path A", "Cached Path B");
+    const payload = await cached.json();
+    const store = {
+      v: 1,
+      entries: [{ storedAt: Date.now(), source: "live" as const, payload }],
+    };
+    localStorage.setItem(__simulationCacheTestUtils.STORAGE_KEY, JSON.stringify(store));
+
+    mockFetch.mockRejectedValue(new TypeError("Network error"));
+    const user = userEvent.setup();
+    render(
+      <MotionConfig reducedMotion="always">
+        <ThinSliceDemo />
+      </MotionConfig>,
+    );
+
+    await user.type(screen.getByRole("textbox", { name: /decision/i }), "Plan X vs Plan Y");
+    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+
+    await waitFor(() => expect(screen.getByTestId("simulation-shell")).toBeInTheDocument());
+    await waitFor(
+      () => expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "fallback"),
+      { timeout: 6000 },
+    );
+    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard");
+    expect(screen.getByTestId("fallback-shell")).toBeInTheDocument();
+    expect(screen.getByTestId("cached-replay-hint")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getAllByText((_, el) => (el?.textContent ?? "").includes("Cached Path A")).length,
+      ).toBeGreaterThan(0);
+    });
+    expect(
+      screen.getAllByText((_, el) => (el?.textContent ?? "").includes("Cached Path B")).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("skips cache replay when useCachedOnFailure is false", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_GOLDEN_REPLAY", "false");
+    const cached = makeSuccessResponse("Cached Path A", "Cached Path B");
+    const payload = await cached.json();
+    localStorage.setItem(
+      __simulationCacheTestUtils.STORAGE_KEY,
+      JSON.stringify({
+        v: 1,
+        entries: [{ storedAt: Date.now(), source: "live", payload }],
+      }),
+    );
+
+    mockFetch.mockRejectedValue(new TypeError("Network error"));
+    const user = userEvent.setup();
+    render(
+      <MotionConfig reducedMotion="always">
+        <ThinSliceDemo simulationOptions={{ useCachedOnFailure: false }} />
+      </MotionConfig>,
+    );
+
+    await user.type(screen.getByRole("textbox", { name: /decision/i }), "Plan X vs Plan Y");
+    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+
+    await waitFor(
+      () => expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard"),
+      { timeout: 6000 },
+    );
+    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "error");
+    expect(screen.getByTestId("error-shell")).toBeInTheDocument();
+    expect(screen.queryByText("Cached Path A")).not.toBeInTheDocument();
+  });
+
+  it("skips replay when ErrorResponse recovery.canUseCache is false", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_GOLDEN_REPLAY", "false");
+    const cached = makeSuccessResponse("Cached Path A", "Cached Path B");
+    const payload = await cached.json();
+    localStorage.setItem(
+      __simulationCacheTestUtils.STORAGE_KEY,
+      JSON.stringify({
+        v: 1,
+        entries: [{ storedAt: Date.now(), source: "live", payload }],
+      }),
+    );
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 502,
+      json: () =>
+        Promise.resolve({
+          status: "error",
+          error: { code: "PROVIDER_ERROR", message: "down", recoverable: true },
+          recovery: { canUseCache: false, fallbackViz: false },
+        }),
+    });
+
+    const user = userEvent.setup();
+    render(
+      <MotionConfig reducedMotion="always">
+        <ThinSliceDemo />
+      </MotionConfig>,
+    );
+
+    await user.type(screen.getByRole("textbox", { name: /decision/i }), "Plan X vs Plan Y");
+    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+
+    await waitFor(
+      () => expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "error"),
+      { timeout: 6000 },
+    );
+    expect(screen.getByTestId("error-shell")).toBeInTheDocument();
+    expect(screen.queryByText("Cached Path A")).not.toBeInTheDocument();
+  });
 });

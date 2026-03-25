@@ -19,6 +19,14 @@ Living reference for parallel work on Epics 2–5. Source-of-truth types live in
 - **Mock fallback:** `MOCK_BAKERY_MAP_FIXTURE` (alias for the same object as `MOCK_SIMULATION_RESPONSE`) in `src/lib/mock-fixture.ts` — full bakery map scenario with both paths, KPIs, and comparison.
 - **Progress update strategy (Story 6.1):** Client uses predictive synthetic timing for `AgentHUD` animation during live runs. `POST /api/simulate` is fire-and-wait (no SSE or polling), and `SimulationResponse.progress.agent_states` reflects final completion state after the run.
 
+### C6 — Client cache & replay (Story 6.2)
+
+- **Validation:** `validateSimulationResponse` in `src/lib/validate-simulation-response.ts` is shared with `/api/simulate` and the browser. Cache **writes** and **reads** run only after this check succeeds (and an optional `meta.schemaVersion` trust check in the cache module).
+- **Bounded storage:** `src/lib/simulation-client-cache.ts` persists at most **3** live snapshots under `foresight:sim-response-cache:v1`, enforces a **7-day TTL**, and trims total serialized size (~**512 KB** cap) by evicting older entries.
+- **Golden replay:** Bundled `SimulationResponse` is `GOLDEN_DEMO_SIMULATION_RESPONSE` in `src/lib/golden/golden-demo-simulation-response.ts`. Enable/disable via **`NEXT_PUBLIC_ENABLE_GOLDEN_REPLAY`**: unset or any value other than `"false"` keeps golden available as a last resort when local cache is empty (demo/hackathon default-on).
+- **Error policy:** When `POST /api/simulate` fails, the shell consults `ErrorResponse.recovery.canUseCache` when the body parses as an error envelope. If `canUseCache === false`, the client **must not** replay cache/golden for that failure. `SimulationRequest.options.useCachedOnFailure === false` disables replay for **all** failures (including network errors). Hydrated replays set `runStatus` to **`fallback`** and `meta.cachedReplay` to **true** for honest telemetry/UI.
+- **Tests:** `src/lib/simulation-client-cache.test.ts`, replay scenarios in `src/components/shell/ThinSliceDemo.test.tsx`.
+
 ## No-Epic-6 guarantee
 
 Every contract above can be verified locally without live API keys, streaming, or Epic 6 client integration:
