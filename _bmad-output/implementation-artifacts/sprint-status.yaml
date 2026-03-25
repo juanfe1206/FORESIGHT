@@ -76,7 +76,7 @@ development_status:
   5-4-network-view-fallback-visualization: done
   epic-5-retrospective: optional
 
-  epic-6: in-progress
+  epic-6: done
   6-1-end-to-end-client-api-integration-progress-updates: done
   6-2-cached-golden-replay-bounded-client-cache: done
   6-3-transparency-confidence-non-advice-framing: done
