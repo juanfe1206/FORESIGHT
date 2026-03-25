@@ -42,6 +42,36 @@
 - Module-level fixture null-safety not guarded at runtime; TypeScript `satisfies SimulationResponse` provides compile-time coverage — no runtime issue expected.
 - Dual public names `MOCK_BAKERY_MAP_FIXTURE` / `MOCK_SIMULATION_RESPONSE` could cause import drift over time. Alias is intentional per spec; consider consolidating in a future cleanup pass.
 
+## Deferred from: code review of 3-4-flow-view-resource-allocation-visualization (2026-03-25)
+
+- `<defs>` in `OutcomePool.tsx` is nested inside a `<g>` element rather than at the SVG root. Technically valid SVG but inconsistent with Safari's historical handling of `<defs>` inside groups. The `#outcome-fill` gradient should be hoisted into `FlowHalf`'s top-level `<defs>` block alongside `#flow-pipe-gradient`.
+- Gradient ids `flow-pipe-gradient` and `outcome-fill` are hard-coded strings shared across both `FlowHalf` SVGs rendered side-by-side. Today the gradients are identical so there is no visual bug, but the second definition silently wins. Apply a per-instance prefix via React 18 `useId()` before the two panels diverge visually.
+- `pipeSqueeze` is derived from raw `kpis.competitiveExposure` directly in `FlowHalf` rather than in `flowVizModel`. The divisor `200` is an unnamed magic number. Move into `buildFlowVizModel` (expose as `model.pipeSqueeze`) and add the constant to `FLOW_VIZ_SCALING` so it is unit-tested alongside all other KPI mappings.
+- `pathRefs` array literal in `FlowHalf` is recreated each render, invalidating the `useMemo` in `Particles` on every render. Wrap in `useMemo` in `FlowHalf` or accept a fixed-size tuple to make the dependency stable.
+- `particleFill` in `Particles.tsx` uses the magic number `145` (HSL hue for green) without a named constant. Extract as `const GREEN_HUE = 145` for readability.
+
+## Deferred from: code review of 3-1-decision-form-context-fields (2026-03-25)
+
+- `inputClassName` Tailwind string is duplicated verbatim in both `ContextFields.tsx` and `DecisionForm.tsx`. No correctness issue; extract to a shared constant (e.g., `src/components/input/styles.ts`) in a future cleanup pass.
+- `ContextFields` props `revenueErrorId?: string` and `revenueError?: string | null` are typed as optional but are always intended to be passed together. If only `revenueError` is set without `revenueErrorId`, `aria-describedby` would render as the string `"undefined"` on the DOM. No runtime impact with the current single consumer (`DecisionForm`); tighten to required props or a union type in a future a11y pass.
+
+## Deferred from: code review of 3-2-simulate-cta-submit-wiring (2026-03-25)
+
+- `focus-visible` ring on `GlowButton` uses full `ring-accent` + `ring-offset-2 ring-offset-bg` while `DecisionForm` inputs use `ring-accent/30` with no offset. The deviation is defensible (ring-offset needed for visibility on `bg-accent` background), but the spec says "consistent with DecisionForm inputs." Revisit in a dedicated a11y/design-token pass.
+- `onValidSubmit` microtask in `ThinSliceDemo` does not re-check that `runStatus` is still `"submitting"` before advancing to `inProgress`. In production the window is sub-millisecond and no concurrent actor can change state. In the dev preview panel, a user could theoretically change `runStatus` via the dev select in that gap and get overwritten. Low risk; consider a guard if dev UX issues are reported.
+
+## Deferred from: code review of 3-3-simulation-container-panel-headers-input-running-transition (2026-03-25)
+
+- Choreography total duration is ~1.69s with `AnimatePresence mode="wait"` (input exit 0.45s + panel tail 1.24s). Spec §10.1 / UX-DR15 targets "~1.2s total perceived sequence." Treat as soft guideline for this sprint; address in a dedicated motion polish pass (overlap stages with `mode="sync"` or reduce individual durations).
+- Panel stagger order is left→right (delays 0, 0.07, 0.14s). Spec task implies center-out ("expand from center / stagger children"). Left-to-right reading order is defensible; revisit stagger direction with design in a UX polish pass.
+- No integration tests for `SimulationContainer` (aria-labels, stagger, VizRouter wiring); pre-existing gap in shell test coverage.
+- `derivePathLabels` lacks unit tests for the `vs`-pattern branch, multi-pipe inputs, 48-char truncation, and 3+-alternative decisions; add a dedicated `derive-path-labels.test.ts` in a future test-coverage pass.
+- `isVizType` array in `ThinSliceDemo` duplicates the `VizType` union — adding a new type variant without updating the array silently drops the option from the dev select; consider deriving the array from the type or moving it to `types.ts`.
+- `ThinSliceDemo.test.tsx` new test covers pipe-pattern label derivation only; no assertion for the `vs`-pattern path; add a parallel test for "X vs Y" decision inputs.
+- `MOCK_BAKERY_MAP_FIXTURE` is passed as `pathDataA`/`pathDataB` for all `viz_type` branches in dev preview — map-specific shape works but may mislead shape assumptions when non-map visualizations land in Epic 4/5.
+- `PanelHeader` renders a blank `<header>` region (with reserved min-height) if `title=""` is passed; add a defensive fallback or document that empty-string title is a caller contract violation.
+- `PanelHeader` `accentClassName` and `headingLevel` props have no test coverage; add assertions for correct element type and applied class in a future component contract pass.
+
 ## Deferred from: code review of 2-1-simulate-api-route-scaffold-environment-wiring (2026-03-24)
 
 - Rate limiter `store` in `rate-limit.ts` accumulates Map entries for every unique IP that has ever made a request; old timestamps are evicted but the key is never removed. Memory grows proportionally to the number of unique IPs over the process lifetime. Acceptable for MVP/hackathon; revisit if a persistent rate-limit store (e.g. Redis) is added.

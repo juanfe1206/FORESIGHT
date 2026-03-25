@@ -60,7 +60,10 @@ describe("ThinSliceDemo", () => {
     act(() => {
       fireEvent.click(screen.getByRole("button", { name: /simulate my decision/i }));
     });
-    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "submitting");
+    const root = screen.getByTestId("thin-slice-root");
+    expect(root).toHaveAttribute("data-run-status", "submitting");
+    expect(root).toHaveAttribute("data-ui-stage", "input");
+    expect(screen.getByTestId("simulate-submit")).toHaveAttribute("aria-busy", "true");
   });
 
   it("flows input → dashboard after API response", async () => {
@@ -145,6 +148,26 @@ describe("ThinSliceDemo", () => {
     expect(screen.queryByTestId("map-canvas-region-right")).not.toBeInTheDocument();
   });
 
+  it("shows user-derived path labels in running panel headings for pipe-separated decisions", async () => {
+    mockFetch.mockImplementation(() => delayedFetch(makeSuccessResponse(), 5000));
+    const user = userEvent.setup();
+    render(<ThinSliceDemo />);
+
+    await user.selectOptions(screen.getByTestId("dev-viz-type-preview"), "flow");
+
+    await act(async () => {
+      fireEvent.change(screen.getByRole("textbox", { name: /decision/i }), {
+        target: { value: "Bake more bread | Focus on catering" },
+      });
+    });
+    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+
+    await waitFor(() => expect(screen.getByTestId("simulation-shell")).toBeInTheDocument());
+    expect(screen.getByRole("heading", { name: /^Bake more bread$/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Focus on catering$/ })).toBeInTheDocument();
+    expect(screen.queryByText(/scenario\s*a/i)).not.toBeInTheDocument();
+  });
+
   it("renders dashboard stage with KPI slots", async () => {
     const user = userEvent.setup();
     render(<ThinSliceDemo />);
@@ -213,6 +236,14 @@ describe("ThinSliceDemo", () => {
     expect(screen.getAllByTestId("slot-left-panel").length).toBeGreaterThanOrEqual(1);
   });
 
+  it("does not leave input when decision is empty on submit", async () => {
+    const user = userEvent.setup();
+    render(<ThinSliceDemo />);
+    await user.click(screen.getByTestId("simulate-submit"));
+    expect(await screen.findByTestId("decision-validation-error")).toBeInTheDocument();
+    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "input");
+  });
+
   it("omits dev preview controls when NODE_ENV is production", () => {
     vi.stubEnv("NODE_ENV", "production");
     render(<ThinSliceDemo />);
@@ -224,7 +255,9 @@ describe("ThinSliceDemo", () => {
     render(<ThinSliceDemo />);
     const decisionField = screen.getByRole("textbox", { name: /decision/i });
     await user.type(decisionField, "Option one vs option two");
-    await user.tab();
+    for (let i = 0; i < 6; i += 1) {
+      await user.tab();
+    }
     await user.keyboard("{Enter}");
 
     await waitFor(

@@ -5,45 +5,47 @@ import type { FallbackVizProps, VizSlotProps } from "@/lib/integration-contracts
 import { useUiShell } from "@/lib/ui-shell-context";
 import type { AgentState } from "@/lib/types";
 import { FallbackViz } from "./FallbackViz";
+import { FlowView } from "./FlowView/FlowView";
 import { NetworkView } from "./NetworkView/NetworkView";
 
 export type VizRouterProps = VizSlotProps & {
+  agentStates?: AgentState[];
+};
+
+type VizRouterSwitchProps = VizSlotProps & {
   agentStates: AgentState[];
 };
 
-function MapFlowPlaceholder({ viz_type, pathLabel }: VizSlotProps) {
-  const title = viz_type === "map" ? "Map view" : "Resource flow view";
+function MapPlaceholder({ pathLabel }: VizSlotProps) {
   return (
     <div
-      data-testid={`viz-placeholder-${viz_type}`}
+      data-testid="viz-placeholder-map"
       className="flex min-h-36 flex-1 flex-col justify-center gap-2 rounded-lg border border-dashed border-border/70 bg-surface/40 p-4"
-      aria-label={`${title} placeholder for ${pathLabel}`}
+      aria-label={`Map view placeholder for ${pathLabel}`}
     >
-      <p className="font-heading text-caption font-medium text-text-dim">{title}</p>
+      <p className="font-heading text-caption font-medium text-text-dim">Map view</p>
       <p className="text-caption text-text-dim">
-        {viz_type === "map"
-          ? "Map rendered via MapHalf in the shell."
-          : "Full resource-flow visualization ships in Epic 3."}{" "}
-        This path: <span className="text-text">{pathLabel}</span>
+        Map rendered via MapHalf in the shell. This path:{" "}
+        <span className="text-text">{pathLabel}</span>
       </p>
     </div>
   );
 }
 
-function VizRouterSwitch(props: VizRouterProps) {
+function VizRouterSwitch(props: VizRouterSwitchProps) {
   const { runStatus } = useUiShell();
   const forcedFallback = runStatus === "fallback";
   const mode = forcedFallback ? "fallback" : props.viz_type;
 
   switch (mode) {
+    case "flow":
+      return <FlowView pathLabel={props.pathLabel} pathData={props.pathData} />;
     case "network":
       return <NetworkView {...props} />;
     case "fallback":
       return <FallbackViz {...props} />;
     case "map":
-      return <MapFlowPlaceholder viz_type="map" pathLabel={props.pathLabel} pathData={props.pathData} />;
-    case "flow":
-      return <MapFlowPlaceholder viz_type="flow" pathLabel={props.pathLabel} pathData={props.pathData} />;
+      return <MapPlaceholder viz_type="map" pathLabel={props.pathLabel} pathData={props.pathData} />;
     default: {
       const _exhaustive: never = mode;
       void _exhaustive;
@@ -83,9 +85,13 @@ class VizRenderErrorBoundary extends React.Component<
  * Single `viz_type` switch for thin-slice side panels. Shell `runStatus === "fallback"`
  * forces `FallbackViz` regardless of response mode (graceful degradation).
  */
+const DEFAULT_AGENT_STATES: AgentState[] = ["dormant", "dormant", "dormant", "dormant"];
+
 export function VizRouter(props: VizRouterProps) {
+  const agentStates = props.agentStates ?? DEFAULT_AGENT_STATES;
   const fallbackProps: FallbackVizProps = {
     ...props,
+    agentStates,
     viz_type: "fallback",
   };
 
@@ -95,7 +101,7 @@ export function VizRouter(props: VizRouterProps) {
         key={`${props.pathLabel}-${props.viz_type}`}
         fallbackProps={fallbackProps}
       >
-        <VizRouterSwitch {...props} />
+        <VizRouterSwitch {...props} agentStates={agentStates} />
       </VizRenderErrorBoundary>
     </div>
   );

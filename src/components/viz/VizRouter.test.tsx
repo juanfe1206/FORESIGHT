@@ -31,6 +31,22 @@ function withShell(runStatus: UiShellContextValue["runStatus"], node: ReactNode)
 }
 
 describe("VizRouter", () => {
+  it("renders FlowView when viz_type is flow", () => {
+    render(
+      <MotionConfig reducedMotion="always">
+        {withShell(
+          "inProgress",
+          <VizRouter
+            {...MOCK_VIZ_SLOT_PROPS_A}
+            viz_type="flow"
+            agentStates={d4}
+          />,
+        )}
+      </MotionConfig>,
+    );
+    expect(screen.getByTestId("viz-router-flow")).toBeInTheDocument();
+  });
+
   it("renders NetworkView when viz_type is network", () => {
     render(
       <MotionConfig reducedMotion="always">
@@ -50,22 +66,6 @@ describe("VizRouter", () => {
       </MotionConfig>,
     );
     expect(screen.getByTestId("viz-placeholder-map")).toBeInTheDocument();
-  });
-
-  it("renders flow placeholder when viz_type is flow", () => {
-    render(
-      <MotionConfig reducedMotion="always">
-        {withShell(
-          "inProgress",
-          <VizRouter
-            {...MOCK_VIZ_SLOT_PROPS_A}
-            viz_type="flow"
-            agentStates={d4}
-          />,
-        )}
-      </MotionConfig>,
-    );
-    expect(screen.getByTestId("viz-placeholder-flow")).toBeInTheDocument();
   });
 
   it("renders FallbackViz when viz_type is explicitly fallback", () => {

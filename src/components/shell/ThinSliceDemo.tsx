@@ -12,10 +12,15 @@ import {
   useMemo,
   useRef,
   useState,
-  type FormEvent,
   type ReactNode,
 } from "react";
+import {
+  DecisionForm,
+  emptyDecisionFormState,
+  type DecisionFormInputState,
+} from "@/components/input/DecisionForm";
 import type { AgentOutput, KPIs, PathSynthesis, SimulationResponse } from "@/lib/types";
+import type { SimulationRequest } from "@/lib/types";
 import {
   RUN_MOCK_MS,
   initialUiShellState,
@@ -36,6 +41,7 @@ import { VizRouter } from "@/components/viz/VizRouter";
 import { AGENT_ROLES } from "@/lib/types";
 import type { AgentState, VizType } from "@/lib/types";
 import { MOCK_BAKERY_MAP_FIXTURE } from "@/lib/mock-fixture";
+import { derivePathLabels } from "@/lib/derive-path-labels";
 import { DeepDivePanel, DeepDiveStrip } from "@/components/narrative";
 import { MapHalf } from "@/components/viz/MapView";
 import { ModeBadge } from "@/components/running/ModeBadge";
@@ -57,31 +63,6 @@ const runCardClassCenter =
 const runCardClassRight =
   "order-3 flex min-h-48 flex-col rounded-xl border border-border bg-surface p-4 lg:order-3";
 
-function derivePathLabels(decision: string): [string, string] {
-  const d = decision.trim();
-  if (!d) return ["Path A", "Path B"];
-
-  const vsMatch = /\s+vs\.?\s+/i.exec(d);
-  if (vsMatch) {
-    const parts = d.split(vsMatch[0]).map((s) => s.trim());
-    if (parts.length >= 2) {
-      const a = parts[0].slice(0, 48) || "Path A";
-      const b = parts[1].slice(0, 48) || "Path B";
-      return [a, b];
-    }
-  }
-
-  const pipe = d
-    .split("|")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (pipe.length >= 2) {
-    return [pipe[0].slice(0, 48), pipe[1].slice(0, 48)];
-  }
-
-  return ["Path A", "Path B"];
-}
-
 function VizOrientationBand({ vizType }: { vizType: VizType }) {
   return (
     <div
@@ -96,7 +77,12 @@ function VizOrientationBand({ vizType }: { vizType: VizType }) {
 export function ThinSliceDemo() {
   const isDevPreviewEnabled = process.env.NODE_ENV !== "production";
   const reducedMotionResolved = useReducedMotionConfig();
-  const readStoryDelay = reducedMotionResolved === true ? 0 : READ_FULL_STORY_DELAY_S;
+  const reduceMotion = reducedMotionResolved === true;
+  const readStoryDelay = reduceMotion ? 0 : READ_FULL_STORY_DELAY_S;
+
+  const inputExitTransition = reduceMotion
+    ? { duration: 0.08 }
+    : { duration: 0.45, ease: [0.33, 1, 0.68, 1] as const };
 
   const isMountedRef = useRef(true);
   useEffect(() => () => { isMountedRef.current = false; }, []);
@@ -106,7 +92,7 @@ export function ThinSliceDemo() {
   const [uiStage, setUiStage] = useState<UiStage>(initialUiShellState.uiStage);
   const [runStatus, setRunStatus] = useState<UiRunStatus>(initialUiShellState.runStatus);
   const [vizType, setVizType] = useState<VizType>(initialUiShellState.vizType);
-  const [decision, setDecision] = useState("");
+  const [form, setForm] = useState<DecisionFormInputState>(emptyDecisionFormState);
   const [pathLabels, setPathLabels] = useState<[string, string]>(["Path A", "Path B"]);
   const [agentResults, setAgentResults] = useState<{ A: AgentOutput[]; B: AgentOutput[] } | null>(null);
   const [synthesisResults, setSynthesisResults] = useState<{ A: PathSynthesis; B: PathSynthesis } | null>(null);
@@ -193,83 +179,87 @@ export function ThinSliceDemo() {
     ids.push(
       window.setTimeout(() => {
         if (!isMountedRef.current) return;
-        setPathLabels(derivePathLabels(decision));
+        setPathLabels(derivePathLabels(form.decision));
         setUiStage("dashboard");
         setRunStatus("completed");
       }, RUN_MOCK_MS),
     );
 
     return () => ids.forEach((id) => window.clearTimeout(id));
-  }, [uiStage, runStatus, decision, dormantRow]);
+  }, [uiStage, runStatus, form.decision, dormantRow]);
 
-  const onSubmit = useCallback(
-    async (e: FormEvent) => {
-      e.preventDefault();
-
+  const onValidSubmit = useCallback(
+    ({ decision, context }: { decision: string; context: SimulationRequest["context"] }) => {
       const optimisticLabels = derivePathLabels(decision);
       setPathLabels(optimisticLabels);
 
       isApiCallRef.current = true;
-      setUiStage("running");
       setRunStatus("submitting");
-      queueMicrotask(() => { if (isMountedRef.current) setRunStatus("inProgress"); });
 
-      let finalLabels: [string, string] = optimisticLabels;
-      let finalStatus: UiRunStatus = "completed";
+      queueMicrotask(() => {
+        if (!isMountedRef.current) return;
+        setUiStage("running");
+        setRunStatus("inProgress");
 
-      try {
-        const res = await fetch("/api/simulate", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ decision: decision.trim() }),
-        });
-        const json = await res.json() as Partial<SimulationResponse>;
+        (async () => {
+          let finalLabels: [string, string] = optimisticLabels;
+          let finalStatus: UiRunStatus = "completed";
 
-        if (res.ok && json.path_labels?.A && json.path_labels?.B) {
-          finalLabels = [json.path_labels.A, json.path_labels.B];
-          if (json.viz_type !== undefined && isVizType(json.viz_type)) setVizType(json.viz_type);
+          try {
+            const res = await fetch("/api/simulate", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ decision: decision.trim(), context }),
+            });
+            const json = await res.json() as Partial<SimulationResponse>;
 
-          const agentsA = json.paths?.A?.agents;
-          const agentsB = json.paths?.B?.agents;
-          if (agentsA?.length && agentsB?.length) {
-            setAgentResults({ A: agentsA, B: agentsB });
+            if (res.ok && json.path_labels?.A && json.path_labels?.B) {
+              finalLabels = [json.path_labels.A, json.path_labels.B];
+              if (json.viz_type !== undefined && isVizType(json.viz_type)) setVizType(json.viz_type);
+
+              const agentsA = json.paths?.A?.agents;
+              const agentsB = json.paths?.B?.agents;
+              if (agentsA?.length && agentsB?.length) {
+                setAgentResults({ A: agentsA, B: agentsB });
+              }
+
+              const synthA = json.paths?.A?.synthesis;
+              const synthB = json.paths?.B?.synthesis;
+              if (synthA && synthB) setSynthesisResults({ A: synthA, B: synthB });
+
+              const kpisA = json.paths?.A?.kpis;
+              const kpisB = json.paths?.B?.kpis;
+              if (kpisA && kpisB) setKpiResults({ A: kpisA, B: kpisB });
+
+              if (json.comparison) setComparison(json.comparison);
+              if (json.meta) setMeta(json.meta);
+            } else {
+              finalStatus = "error";
+            }
+          } catch {
+            finalStatus = "error";
           }
 
-          const synthA = json.paths?.A?.synthesis;
-          const synthB = json.paths?.B?.synthesis;
-          if (synthA && synthB) setSynthesisResults({ A: synthA, B: synthB });
+          if (!isMountedRef.current) {
+            isApiCallRef.current = false;
+            return;
+          }
 
-          const kpisA = json.paths?.A?.kpis;
-          const kpisB = json.paths?.B?.kpis;
-          if (kpisA && kpisB) setKpiResults({ A: kpisA, B: kpisB });
-
-          if (json.comparison) setComparison(json.comparison);
-          if (json.meta) setMeta(json.meta);
-        } else {
-          finalStatus = "error";
-        }
-      } catch {
-        finalStatus = "error";
-      }
-
-      if (!isMountedRef.current) {
-        isApiCallRef.current = false;
-        return;
-      }
-
-      isApiCallRef.current = false;
-      setPathLabels(finalLabels);
-      setUiStage("dashboard");
-      setRunStatus(finalStatus);
+          isApiCallRef.current = false;
+          setPathLabels(finalLabels);
+          setUiStage("dashboard");
+          setRunStatus(finalStatus);
+        })();
+      });
     },
-    [decision],
+    [],
   );
 
   const resetToInput = useCallback(() => {
     setUiStage("input");
     setRunStatus("idle");
+    setForm(emptyDecisionFormState);
     setVizType(initialUiShellState.vizType);
-    setDecision("");
     setAgentResults(null);
     setSynthesisResults(null);
     setKpiResults(null);
@@ -288,7 +278,8 @@ export function ThinSliceDemo() {
   const onDevRunStatusChange = useCallback((next: UiRunStatus) => {
     setRunStatus(next);
     if (next === "idle") setUiStage("input");
-    else if (next === "submitting" || next === "inProgress") setUiStage("running");
+    else if (next === "submitting") setUiStage("input");
+    else if (next === "inProgress") setUiStage("running");
     else if (next === "completed") setUiStage("dashboard");
   }, []);
 
@@ -427,32 +418,20 @@ export function ThinSliceDemo() {
                   aria-label="Decision input"
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={springTransition}
+                  exit={
+                    reduceMotion
+                      ? { opacity: 0 }
+                      : { opacity: 0, scale: 0.95, y: -12 }
+                  }
+                  transition={inputExitTransition}
                   className="mx-auto w-full max-w-xl"
                 >
-                  <form onSubmit={onSubmit} className="flex flex-col gap-6">
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="decision" className="text-caption font-medium text-text">
-                        Decision
-                      </label>
-                      <textarea
-                        id="decision"
-                        required
-                        rows={4}
-                        value={decision}
-                        onChange={(ev) => setDecision(ev.target.value)}
-                        placeholder="e.g. Expand to Austin vs stay regional"
-                        className="rounded-lg border border-border bg-surface px-4 py-3 text-body text-text placeholder:text-text-dim focus-visible:border-accent"
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      className="rounded-lg bg-accent px-6 py-3 font-heading text-body font-semibold text-bg transition hover:opacity-90"
-                    >
-                      Simulate My Decision
-                    </button>
-                  </form>
+                  <DecisionForm
+                    value={form}
+                    onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+                    onValidSubmit={onValidSubmit}
+                    isSubmitting={runStatus === "submitting"}
+                  />
                 </motion.section>
               )}
 
@@ -618,7 +597,7 @@ export function ThinSliceDemo() {
                         animate={{ opacity: 1 }}
                         transition={{
                           delay: readStoryDelay,
-                          duration: reducedMotionResolved === true ? 0.01 : 0.35,
+                          duration: reduceMotion ? 0.01 : 0.35,
                           ease: "easeOut",
                         }}
                         className="mt-4 flex justify-center px-1"
