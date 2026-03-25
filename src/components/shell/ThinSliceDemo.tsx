@@ -111,7 +111,19 @@ function VizOrientationBand({ vizType }: { vizType: VizType }) {
 }
 
 export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoProps = {}) {
-  const isDevPreviewEnabled = process.env.NODE_ENV !== "production";
+  // Demo-scenario controls are dev-only by default, but you can opt-in in production builds
+  // by setting NEXT_PUBLIC_FORCE_DEV_PREVIEW="true" in the hosting environment (Vercel).
+  const isDevPreviewEnabled =
+    process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_FORCE_DEV_PREVIEW === "true";
+
+  // Public demo is for general users: when set, we show exactly one demo scenario button
+  // in production builds (intended for demos / tutorials).
+  const publicDemoScenarioId: DemoScenarioId | null =
+    process.env.NEXT_PUBLIC_PUBLIC_DEMO_SCENARIO_ID &&
+    process.env.NEXT_PUBLIC_PUBLIC_DEMO_SCENARIO_ID in DEMO_SCENARIOS
+      ? (process.env.NEXT_PUBLIC_PUBLIC_DEMO_SCENARIO_ID as DemoScenarioId)
+      : null;
+
   const reducedMotionResolved = useReducedMotionConfig();
   const reduceMotion = reducedMotionResolved === true;
   const readStoryDelay = reduceMotion ? 0 : READ_FULL_STORY_DELAY_S;
@@ -617,6 +629,36 @@ export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoP
                             </button>
                           );
                         })}
+                      </div>
+                      {activeDemoScenarioId ? (
+                        <p className="mt-2 text-caption text-text-dim" data-testid="demo-scenario-selected">
+                          Selected: <span className="font-mono">{activeDemoScenarioId}</span>
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
+
+                  {!isDevPreviewEnabled && publicDemoScenarioId && (
+                    <div
+                      role="group"
+                      aria-label="Public demo"
+                      className="mb-6 rounded-xl border border-border bg-surface/60 px-4 py-3"
+                    >
+                      <p className="text-caption font-medium text-text-dim">Public demo</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          data-testid={`public-demo-scenario-btn-${publicDemoScenarioId}`}
+                          onClick={() => applyDemoScenarioToForm(publicDemoScenarioId)}
+                          className="rounded-lg border border-accent px-3 py-2 text-caption transition hover:border-accent hover:text-accent"
+                        >
+                          Run:{" "}
+                          {publicDemoScenarioId === "demo-map-v1"
+                            ? "Demo 1: Map"
+                            : publicDemoScenarioId === "demo-flow-v1"
+                              ? "Demo 2: Flow"
+                              : "Demo 3: Network (fallback)"}
+                        </button>
                       </div>
                       {activeDemoScenarioId ? (
                         <p className="mt-2 text-caption text-text-dim" data-testid="demo-scenario-selected">

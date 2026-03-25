@@ -108,8 +108,6 @@ Grounding definitions:
 
 When context is sparse, say so honestly via low confidence and "assumed" grounding — do not fabricate specifics.`;
 
-
-
 function buildUserPrompt(
   pathLabel: string,
   alternativePathLabel: string,
