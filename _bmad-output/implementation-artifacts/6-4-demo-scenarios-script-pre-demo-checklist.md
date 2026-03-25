@@ -59,6 +59,14 @@ _trace: FR30; Epic 6 Story 6.4; architecture pre-demo controls + smoke test guid
   - [x] Run `npm run lint`.
   - [x] Run `npm run build`.
 
+### Review Findings
+
+- [x] [Review][Patch] "Rehearsal intent:" prefix in scenario `details` leaks into AI agent prompts [`src/lib/demo-scenarios.ts`] — Fixed: replaced with clean user-facing context descriptions.
+- [x] [Review][Patch] Missing component-level test for Demo 3 fallback replay path [`src/components/shell/ThinSliceDemo.test.tsx`] — Fixed: added test asserting `runStatus=fallback`, `vizType=fallback`, and `fallback-shell` present after 504 response with cache replay.
+- [x] [Review][Patch] Pre-demo checklist uses plain text for script reference [`docs/pre-demo-checklist.md`] — Fixed: changed to `[demo-script.md](./demo-script.md)`.
+- [x] [Review][Defer] Circular `derivePathLabels` assertion in demo classifier test [`src/lib/classifier.test.ts`] — deferred, pre-existing pattern concern (test imports and calls `derivePathLabels` to compute expected labels, same function the classifier calls; assertion verifies no regression only if `derivePathLabels` itself is correct)
+- [x] [Review][Defer] `expectedVizType` field meaning undocumented for Demo 3 [`src/lib/demo-scenarios.ts`] — deferred, pre-existing; field correctly represents classifier output ("network") but Demo 3's visible UI outcome is "fallback"; no comment bridges the gap for future maintainers
+
 ## Dev Notes
 
 ### Intent

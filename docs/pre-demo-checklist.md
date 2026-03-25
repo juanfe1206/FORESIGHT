@@ -9,7 +9,7 @@ Scenario IDs (fixed)
 - Demo 2 (Flow): `demo-flow-v1`
 - Demo 3 (Network -> controlled fallback): `demo-network-v1`
 
-Script reference: `docs/demo-script.md`
+Script reference: [demo-script.md](./demo-script.md)
 - Demo 1 section: Map
 - Demo 2 section: Flow
 - Demo 3 section: Network (controlled fallback)

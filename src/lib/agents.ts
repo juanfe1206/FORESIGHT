@@ -66,9 +66,14 @@ export class AgentPartialFailureError extends Error {
 
 const VALID_GROUNDING = new Set<GroundingLevel>(["supplied", "mixed", "assumed"]);
 const AGENT_SYSTEM_PROMPT =
-  "You are a business simulation analysis agent. Return only JSON with keys: role, insight, confidence, grounding.";
+  "You are a specialist business simulation agent. Provide a path-specific insight from your assigned role's perspective. Your insight MUST reflect what is distinctively true about THIS path — not a generic observation equally applicable to the alternative. Return only JSON with keys: role, insight, confidence, grounding.";
 
-function buildUserPrompt(pathLabel: string, role: string, context: SimulationRequest["context"]): string {
+function buildUserPrompt(
+  pathLabel: string,
+  alternativePathLabel: string,
+  role: string,
+  context: SimulationRequest["context"],
+): string {
   const contextLines: string[] = [];
   if (context.industry) contextLines.push(`Industry: ${context.industry}`);
   if (context.location) contextLines.push(`Location: ${context.location}`);
@@ -80,13 +85,16 @@ function buildUserPrompt(pathLabel: string, role: string, context: SimulationReq
 
   const contextBlock = contextLines.length ? `\nContext:\n${contextLines.join("\n")}` : "";
 
-  return `Path: ${pathLabel}
+  return `THIS path: ${pathLabel}
+ALTERNATIVE path: ${alternativePathLabel}
 Role: ${role}${contextBlock}
+
+From your role's perspective, what does THIS path specifically do differently from the alternative? Quantify where possible.
 
 Respond in JSON with:
 - role: string
-- insight: concise sentence grounded in available context
-- confidence: number from 0 to 1
+- insight: one concrete sentence specific to THIS path's distinctive outcome (must NOT be equally true for the alternative path)
+- confidence: 0 to 1
 - grounding: "supplied" | "mixed" | "assumed"`;
 }
 
@@ -132,6 +140,7 @@ async function executeAgentSlot(
 ): Promise<AgentOutput> {
   const role = input.roles[slot - 1];
   const pathLabel = input.pathLabels[path];
+  const alternativePathLabel = input.pathLabels[path === "A" ? "B" : "A"];
   let completion;
 
   try {
@@ -140,10 +149,10 @@ async function executeAgentSlot(
         model: input.model,
         messages: [
           { role: "system", content: AGENT_SYSTEM_PROMPT },
-          { role: "user", content: buildUserPrompt(pathLabel, role, input.context) },
+          { role: "user", content: buildUserPrompt(pathLabel, alternativePathLabel, role, input.context) },
         ],
         response_format: { type: "json_object" },
-        max_tokens: 220,
+        max_tokens: 300,
         temperature: 0.4,
       },
       { signal: AbortSignal.timeout(input.timeoutMs) },
