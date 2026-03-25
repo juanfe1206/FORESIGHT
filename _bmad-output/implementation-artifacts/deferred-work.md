@@ -30,3 +30,8 @@
 - AC3 compliance (no "waiting for Epic 6" wording in `epics.md`) not verified within this diff; planning artifact outside the changeset.
 - Module-level fixture null-safety not guarded at runtime; TypeScript `satisfies SimulationResponse` provides compile-time coverage — no runtime issue expected.
 - Dual public names `MOCK_BAKERY_MAP_FIXTURE` / `MOCK_SIMULATION_RESPONSE` could cause import drift over time. Alias is intentional per spec; consider consolidating in a future cleanup pass.
+
+## Deferred from: code review of 3-1-decision-form-context-fields (2026-03-25)
+
+- `inputClassName` Tailwind string is duplicated verbatim in both `ContextFields.tsx` and `DecisionForm.tsx`. No correctness issue; extract to a shared constant (e.g., `src/components/input/styles.ts`) in a future cleanup pass.
+- `ContextFields` props `revenueErrorId?: string` and `revenueError?: string | null` are typed as optional but are always intended to be passed together. If only `revenueError` is set without `revenueErrorId`, `aria-describedby` would render as the string `"undefined"` on the DOM. No runtime impact with the current single consumer (`DecisionForm`); tighten to required props or a union type in a future a11y pass.

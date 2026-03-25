@@ -137,6 +137,14 @@ describe("ThinSliceDemo", () => {
     expect(screen.getAllByTestId("slot-left-panel").length).toBeGreaterThanOrEqual(1);
   });
 
+  it("does not leave input when decision is empty on submit", async () => {
+    const user = userEvent.setup();
+    render(<ThinSliceDemo />);
+    await user.click(screen.getByTestId("simulate-submit"));
+    expect(await screen.findByTestId("decision-validation-error")).toBeInTheDocument();
+    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "input");
+  });
+
   it("omits dev preview controls when NODE_ENV is production", () => {
     vi.stubEnv("NODE_ENV", "production");
     render(<ThinSliceDemo />);
@@ -148,7 +156,10 @@ describe("ThinSliceDemo", () => {
     render(<ThinSliceDemo />);
     const decisionField = screen.getByRole("textbox", { name: /decision/i });
     await user.type(decisionField, "Option one vs option two");
-    await user.tab();
+    // Tab order: decision → five context fields → submit
+    for (let i = 0; i < 6; i += 1) {
+      await user.tab();
+    }
     await user.keyboard("{Enter}");
 
     await waitFor(

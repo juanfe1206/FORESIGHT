@@ -1,7 +1,12 @@
 "use client";
 
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  DecisionForm,
+  emptyDecisionFormState,
+  type DecisionFormInputState,
+} from "@/components/input/DecisionForm";
 import {
   RUN_MOCK_MS,
   initialUiShellState,
@@ -11,6 +16,7 @@ import {
   type UiStage,
 } from "@/lib/ui-state";
 import { UiShellContext } from "@/lib/ui-shell-context";
+import type { SimulationRequest } from "@/lib/types";
 import { buildThinSliceMockComparison } from "@/lib/thin-slice-mock";
 import { CenterPanelSlot, LeftPanelSlot, RightPanelSlot } from "./PanelSlots";
 import { SimulationShell } from "./SimulationShell";
@@ -63,7 +69,7 @@ export function ThinSliceDemo() {
 
   const [uiStage, setUiStage] = useState<UiStage>(initialUiShellState.uiStage);
   const [runStatus, setRunStatus] = useState<UiRunStatus>(initialUiShellState.runStatus);
-  const [decision, setDecision] = useState("");
+  const [form, setForm] = useState<DecisionFormInputState>(emptyDecisionFormState);
   const [pathLabels, setPathLabels] = useState<[string, string]>(["Path A", "Path B"]);
 
   const mockComparison = useMemo(
@@ -80,22 +86,21 @@ export function ThinSliceDemo() {
     return () => window.clearTimeout(id);
   }, [uiStage, runStatus]);
 
-  const onSubmit = useCallback(
-    (e: FormEvent) => {
-      e.preventDefault();
+  const onValidSubmit = useCallback(
+    ({ decision }: { decision: string; context: SimulationRequest["context"] }) => {
       setPathLabels(derivePathLabels(decision));
       setUiStage("running");
       setRunStatus("submitting");
       // P2: Check mount status before the async state update
       queueMicrotask(() => { if (isMountedRef.current) setRunStatus("inProgress"); });
     },
-    [decision],
+    [],
   );
 
   const resetToInput = useCallback(() => {
     setUiStage("input");
     setRunStatus("idle");
-    setDecision("");
+    setForm(emptyDecisionFormState);
   }, []);
 
   const onDevUiStageChange = useCallback((next: UiStage) => {
@@ -243,28 +248,7 @@ export function ThinSliceDemo() {
                   transition={springTransition}
                   className="mx-auto w-full max-w-xl"
                 >
-                  <form onSubmit={onSubmit} className="flex flex-col gap-6">
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="decision" className="text-caption font-medium text-text">
-                        Decision
-                      </label>
-                      <textarea
-                        id="decision"
-                        required
-                        rows={4}
-                        value={decision}
-                        onChange={(ev) => setDecision(ev.target.value)}
-                        placeholder="e.g. Expand to Austin vs stay regional"
-                        className="rounded-lg border border-border bg-surface px-4 py-3 text-body text-text placeholder:text-text-dim focus-visible:border-accent"
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      className="rounded-lg bg-accent px-6 py-3 font-heading text-body font-semibold text-bg transition hover:opacity-90"
-                    >
-                      Simulate My Decision
-                    </button>
-                  </form>
+                  <DecisionForm value={form} onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))} onValidSubmit={onValidSubmit} />
                 </motion.section>
               )}
 
