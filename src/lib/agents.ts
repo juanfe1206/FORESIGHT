@@ -153,7 +153,7 @@ async function executeAgentSlot(
         ],
         response_format: { type: "json_object" },
         max_tokens: 300,
-        temperature: 0.4,
+        temperature: 0.7,
       },
       { signal: AbortSignal.timeout(input.timeoutMs) },
     );
