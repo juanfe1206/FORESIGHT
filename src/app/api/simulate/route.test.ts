@@ -342,8 +342,8 @@ describe("POST /api/simulate", () => {
       asNextRequest(
         makeRequest(
           {
-            decision: "Partner with a local café ecosystem vs launch solo marketing campaigns independently",
-            context: { industry: "Neighborhood bakery", location: "Madrid, Spain", monthlyRevenue: 10000 },
+            decision: "Partner with Hola Coffee Roasters for a co-branded subscription box vs launch a solo online bean store with in-house roasting brand",
+            context: { industry: "Specialty coffee roaster-café", location: "Calle de Embajadores 3, Lavapiés, Madrid", monthlyRevenue: 9200 },
             options: { demoScenarioId: DEMO_SCENARIOS["demo-network-v1"].id },
           },
           "10.0.0.46",

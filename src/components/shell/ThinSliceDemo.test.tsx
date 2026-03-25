@@ -259,7 +259,7 @@ describe("ThinSliceDemo", () => {
       context?: { businessType?: string };
     };
     expect(parsed.options?.demoScenarioId).toBe("demo-map-v1");
-    expect(parsed.context?.businessType).toBe("bakery");
+    expect(parsed.context?.businessType).toBe("cafe");
   });
 
   it("shows running stage with three-panel slots via dev panel", async () => {

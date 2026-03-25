@@ -16,32 +16,32 @@ describe("DeepDivePanel", () => {
     render(<DeepDivePanel {...MOCK_DEEP_DIVE_PROPS} viz_type="map" />);
     expect(
       screen.getByText(
-        /Instagram investment builds digital brand equity/i,
+        /Opening in Lavapiés leverages lower rents/i,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Campaign setup and first creatives/i)).toBeInTheDocument();
-    const tabA = screen.getByRole("tab", { name: /Invest in Instagram ads/i });
+    expect(screen.getByText(/Lease signed on Doctor Fourquet corridor/i)).toBeInTheDocument();
+    const tabA = screen.getByRole("tab", { name: /Open second Toma Café in Lavapiés/i });
     expect(tabA).toHaveAttribute("aria-selected", "true");
   });
 
   it("shows Path B narratives after clicking Path B tab", async () => {
     const user = userEvent.setup();
     render(<DeepDivePanel {...MOCK_DEEP_DIVE_PROPS} viz_type="map" />);
-    await user.click(screen.getByRole("tab", { name: /Partner with Cafe Central/i }));
+    await user.click(screen.getByRole("tab", { name: /Renovate Malasaña flagship/i }));
     expect(
-      screen.getByText(/Partnership with Cafe Central provides immediate warm-customer pipeline/i),
+      screen.getByText(/Evening bar service maximises the existing Malasaña space/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Partnership agreement signed/i)).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Partner with Cafe Central/i })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText(/Liquor license application filed/i)).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Renovate Malasaña flagship/i })).toHaveAttribute("aria-selected", "true");
   });
 
   it("ArrowRight on Path A tab activates Path B tab", async () => {
     const user = userEvent.setup();
     render(<DeepDivePanel {...MOCK_DEEP_DIVE_PROPS} viz_type="map" />);
-    const tabA = screen.getByRole("tab", { name: /Invest in Instagram ads/i });
+    const tabA = screen.getByRole("tab", { name: /Open second Toma Café in Lavapiés/i });
     tabA.focus();
     await user.keyboard("{ArrowRight}");
-    const tabB = screen.getByRole("tab", { name: /Partner with Cafe Central/i });
+    const tabB = screen.getByRole("tab", { name: /Renovate Malasaña flagship/i });
     expect(tabB).toHaveFocus();
     expect(tabB).toHaveAttribute("aria-selected", "true");
   });
@@ -49,31 +49,31 @@ describe("DeepDivePanel", () => {
   it("ArrowLeft on Path B tab activates Path A tab", async () => {
     const user = userEvent.setup();
     render(<DeepDivePanel {...MOCK_DEEP_DIVE_PROPS} viz_type="map" />);
-    await user.click(screen.getByRole("tab", { name: /Partner with Cafe Central/i }));
-    const tabB = screen.getByRole("tab", { name: /Partner with Cafe Central/i });
+    await user.click(screen.getByRole("tab", { name: /Renovate Malasaña flagship/i }));
+    const tabB = screen.getByRole("tab", { name: /Renovate Malasaña flagship/i });
     expect(tabB).toHaveFocus();
     await user.keyboard("{ArrowLeft}");
-    const tabA = screen.getByRole("tab", { name: /Invest in Instagram ads/i });
+    const tabA = screen.getByRole("tab", { name: /Open second Toma Café in Lavapiés/i });
     expect(tabA).toHaveFocus();
     expect(tabA).toHaveAttribute("aria-selected", "true");
   });
 
-  it("renders attribution dots for Month 1 Path A (Customer blue, Cash Flow gold)", () => {
+  it("renders attribution dots for Month 1 Path A (Cash Flow gold, Market accent)", () => {
     render(<DeepDivePanel {...MOCK_DEEP_DIVE_PROPS} viz_type="map" />);
     const activePanel = screen.getByRole("tabpanel");
     const month1Block = within(activePanel).getByTestId("narrative-block-month-1");
-    expect(within(month1Block).getByTitle("Customer")).toHaveClass("bg-blue");
     expect(within(month1Block).getByTitle("Cash Flow")).toHaveClass("bg-gold");
+    expect(within(month1Block).getByTitle("Market")).toHaveClass("bg-accent");
   });
 
   it("exposes tablist with ARIA labels", () => {
     render(<DeepDivePanel {...MOCK_DEEP_DIVE_PROPS} viz_type="map" />);
     expect(screen.getByRole("tablist", { name: /simulation path narrative/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Invest in Instagram ads/i })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: /Open second Toma Café in Lavapiés/i })).toHaveAttribute(
       "aria-controls",
       "panel-path-a",
     );
-    expect(screen.getByRole("tab", { name: /Partner with Cafe Central/i })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: /Renovate Malasaña flagship/i })).toHaveAttribute(
       "aria-controls",
       "panel-path-b",
     );

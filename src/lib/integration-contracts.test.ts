@@ -38,8 +38,8 @@ describe("integration-contracts", () => {
     expect(fb.agentStates).toHaveLength(4);
     expect(hud.roles).toHaveLength(4);
     expect(kpi.pathLabels.A).toBeDefined();
-    expect(scoreA.score).toBe(67);
-    expect(scoreB.score).toBe(78);
+    expect(scoreA.score).toBe(61);
+    expect(scoreB.score).toBe(72);
     expect(deep.pathA.kpis).toBeDefined();
   });
 

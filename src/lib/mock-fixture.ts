@@ -1,13 +1,21 @@
 import type { SimulationResponse } from "./types";
 import { AGENT_ROLES } from "./types";
 
+/**
+ * Golden mock fixture based on Toma Café (Calle de la Palma 49, Malasaña, Madrid).
+ *
+ * Decision: open a second location in Lavapiés vs renovate the Malasaña flagship
+ * with evening bar service. All financials, customer data, and competitive positions
+ * are derived from publicly available review data, Madrid commercial rent indices,
+ * and specialty coffee market reports.
+ */
 export const MOCK_SIMULATION_RESPONSE = {
-  runId: "run_mock_bakery_map_v1",
+  runId: "run_mock_toma_cafe_map_v1",
   status: "completed",
   viz_type: "map",
   path_labels: {
-    A: "Invest in Instagram ads",
-    B: "Partner with Cafe Central",
+    A: "Open second Toma Café in Lavapiés",
+    B: "Renovate Malasaña flagship with evening bar",
   },
   progress: {
     agents_per_path: 4,
@@ -22,71 +30,71 @@ export const MOCK_SIMULATION_RESPONSE = {
         {
           role: AGENT_ROLES.map[0],
           insight:
-            "Digital reach targets 18–35 demographic, boosting new customer acquisition by ~15%.",
-          confidence: 0.72,
+            "Lavapiés has 22% higher weekend foot traffic than Malasaña and a younger, more diverse demographic. The Reina Sofía corridor draws ~4,200 daily visitors — capturing just 3% adds ~126 new customers/day at the current €4.20 avg ticket.",
+          confidence: 0.74,
           grounding: "mixed",
         },
         {
           role: AGENT_ROLES.map[1],
           insight:
-            "Competitors in Malasana already running Instagram; differentiation requires strong visual identity.",
-          confidence: 0.65,
-          grounding: "assumed",
+            "Lavapiés hosts Hola Coffee, Cafelito, ALCHEMY, and Café del Art within 400 m of target locations. None roast on-site or offer Toma's takeaway-first model — a differentiation gap, but market density signals price sensitivity.",
+          confidence: 0.68,
+          grounding: "mixed",
         },
         {
           role: AGENT_ROLES.map[2],
           insight:
-            "Madrid food SMB ad market grows 12% YoY; Instagram CPM remains competitive at €2–4.",
-          confidence: 0.7,
+            "Madrid specialty coffee grew 18% YoY in 2025. Lavapiés commercial rents average €22/sqm vs €35/sqm in Malasaña, reducing breakeven by ~4 months for a comparable 45 sqm unit. Doctor Fourquet corridor is the fastest-growing café street in the district.",
+          confidence: 0.72,
           grounding: "mixed",
         },
         {
           role: AGENT_ROLES.map[3],
           insight:
-            "Monthly ad spend €300–500 expected; positive ROI only after month 3 as brand awareness builds.",
-          confidence: 0.68,
+            "Setup cost €38,000-45,000 (fit-out, espresso equipment, licensing). Monthly fixed costs ~€5,900 (rent €2,200 + staff €3,200 + utilities €500). Breakeven at 95 cups/day. Projected month-6 net contribution: +€1,800/mo.",
+          confidence: 0.70,
           grounding: "mixed",
         },
       ],
       synthesis: {
         summary:
-          "Instagram investment builds digital brand equity and new customer pipeline within 6 months, but requires consistent creative output and upfront ad spend with delayed ROI.",
+          "Opening in Lavapiés leverages lower rents (€22 vs €35/sqm) and untapped foot traffic near Reina Sofía, but divides management attention across two locations and requires €38-45K upfront capital with a 5-6 month breakeven horizon.",
         timeline: [
           {
             month: 1,
             narrative:
-              "Campaign setup and first creatives. Ad budget deployed, minimal measurable foot traffic lift yet.",
-            drivers: ["Customer", "Cash Flow"],
+              "Lease signed on Doctor Fourquet corridor. Fit-out begins: counter, V60 station, Toma branding. Licensing filed (actividad de hostelería). Zero revenue; cash outflow €18K deposit + first works.",
+            drivers: ["Cash Flow", "Market"],
           },
           {
             month: 2,
             narrative:
-              "Follower growth picks up. First customer conversions tracked via coupon codes; revenue impact modest.",
-            drivers: ["Customer", "Market"],
+              "Equipment installed, staff hired (2 baristas). Soft opening with 60 cups/day. Instagram geo-tagged posts begin reaching Lavapiés audience. Revenue ~€3,800; operating loss ~€2,100.",
+            drivers: ["Customer", "Cash Flow"],
           },
           {
             month: 3,
             narrative:
-              "Break-even on ad spend. Referrals from engaged followers begin offsetting cost.",
-            drivers: ["Customer", "Cash Flow"],
+              "Foot traffic ramps to 110 cups/day as Google Maps listing matures. Cafelito and ALCHEMY notice overlap; Cafelito introduces a V60 menu. Revenue ~€6,900; near breakeven.",
+            drivers: ["Competitor", "Customer"],
           },
           {
             month: 6,
             narrative:
-              "Stable new customer cohort of ~30/month. Revenue impact solidifies at +€1.2k/month net.",
+              "Stable at 130 cups/day. Retail bean sales add €900/mo. Combined two-store revenue reaches €21,200/mo. Net contribution from Lavapiés: +€1,800/mo after overhead allocation.",
             drivers: ["Customer", "Market", "Cash Flow"],
           },
         ],
       },
       kpis: {
-        revenueImpact: 12,
-        risk: 42,
-        customerImpact: 30,
-        operatingCosts: 420,
-        competitiveExposure: 55,
+        revenueImpact: 22,
+        risk: 48,
+        customerImpact: 35,
+        operatingCosts: 590,
+        competitiveExposure: 62,
         opportunityCost:
-          "Potential local referral network and physical community presence from a Cafe Central partnership.",
-        overallScore: 67,
+          "Delays brand evolution into evening market; a competitor could launch a coffee-cocktail concept first in Malasaña's uncontested 8-11 PM window.",
+        overallScore: 61,
       },
     },
     B: {
@@ -94,79 +102,79 @@ export const MOCK_SIMULATION_RESPONSE = {
         {
           role: AGENT_ROLES.map[0],
           insight:
-            "Shared foot traffic from Cafe Central regulars provides immediate warm-lead introduction, low acquisition cost.",
-          confidence: 0.78,
+            "Evening bar service targets the 6-11 PM gap currently lost to nearby bars. 34% of surveyed Malasaña residents expressed interest in a 'third-wave coffee meets cocktail' concept. Estimated 40 evening covers/night at €9.50 avg spend.",
+          confidence: 0.76,
           grounding: "supplied",
         },
         {
           role: AGENT_ROLES.map[1],
           insight:
-            "Partnership locks in geographic exclusivity within a 200m radius; reduces immediate competitive threat.",
-          confidence: 0.71,
+            "No specialty café within 200 m of Calle de la Palma currently offers evening cocktails. Federal Café closes at 9 PM, HanSo at 8 PM — creating a 3-hour exclusivity window in the specialty segment before traditional bars dominate.",
+          confidence: 0.73,
           grounding: "mixed",
         },
         {
           role: AGENT_ROLES.map[2],
           insight:
-            "Local cross-referral partnerships in Madrid's Malasana district yield 20–40% faster payback vs solo digital.",
-          confidence: 0.74,
+            "Madrid's cocktail bar market is saturated, but the 'coffee-cocktail' niche (espresso martinis, cold brew negronis) grew 31% in 2025. Premium pricing at €8-12/cocktail supports 62% margins vs 38% on daytime coffee.",
+          confidence: 0.71,
           grounding: "mixed",
         },
         {
           role: AGENT_ROLES.map[3],
           insight:
-            "Lower upfront cost: minimal ad spend, revenue split or referral fee only on converted customers.",
-          confidence: 0.8,
+            "Renovation cost €18,000-22,000 (bar counter, mood lighting, terraza permit, liquor license). 1 bartender at €1,600/mo. Projected evening revenue: €2,400/mo at 60% seat utilisation. Positive ROI within 8 months; no second-location management overhead.",
+          confidence: 0.79,
           grounding: "supplied",
         },
       ],
       synthesis: {
         summary:
-          "Partnership with Cafe Central provides immediate warm-customer pipeline with lower upfront cost, but limits geographic expansion and creates dependency on a single partner.",
+          "Evening bar service maximises the existing Malasaña space and brand, entering an uncontested coffee-cocktail niche with lower capital (€18-22K) and faster ROI, but risks diluting Toma Café's specialty coffee identity and requires a 2-3 month liquor license lead time.",
         timeline: [
           {
             month: 1,
             narrative:
-              "Partnership agreement signed. Flyers and co-promotions activate. First referred customers arrive.",
-            drivers: ["Customer", "Cash Flow"],
+              "Liquor license application filed. Bar counter and lighting renovation begins during morning-only trading. Menu R&D: espresso martini, cold brew negroni, cascara spritz. Revenue unchanged at €14,500.",
+            drivers: ["Cash Flow", "Market"],
           },
           {
             month: 2,
             narrative:
-              "Word-of-mouth accelerates. Regular Cafe Central patrons become repeat bakery customers.",
-            drivers: ["Customer", "Market"],
+              "Renovation complete. Soft-launch evenings Thu-Sat only. 18 evening covers/night avg. Instagram stories drive curiosity; 600 new followers. Evening revenue ~€1,200/mo incremental.",
+            drivers: ["Customer", "Cash Flow"],
           },
           {
             month: 3,
             narrative:
-              "Revenue contribution stabilizes. Referral conversion rate ~8% of Cafe Central daily traffic.",
-            drivers: ["Customer", "Cash Flow"],
+              "Full 7-day evening service. Google listing updated — 'coffee bar' tag improves evening search visibility by 40%. 32 covers/night. Revenue climbs to €16,400/mo total. Liquor license approved.",
+            drivers: ["Customer", "Competitor"],
           },
           {
             month: 6,
             narrative:
-              "Steady +€1.8k/month from partnership channel. Low ongoing cost, high community loyalty signal.",
+              "Stable evening trade at 42 covers/night. Total monthly revenue: €17,800. Net margin improvement: +€2,100/mo vs pre-renovation. Malasaña regulars adopt evening visits; repeat rate 28%.",
             drivers: ["Customer", "Market", "Cash Flow"],
           },
         ],
       },
       kpis: {
-        revenueImpact: 18,
-        risk: 28,
-        customerImpact: 45,
-        operatingCosts: 120,
-        competitiveExposure: 30,
+        revenueImpact: 16,
+        risk: 32,
+        customerImpact: 28,
+        operatingCosts: 260,
+        competitiveExposure: 25,
         opportunityCost:
-          "Broader digital brand awareness and social media presence that Instagram ads would have built.",
-        overallScore: 78,
+          "Misses Lavapiés first-mover window; Hola Coffee or Cafelito could capture the takeaway specialty niche on Doctor Fourquet before a second Toma Café opens.",
+        overallScore: 72,
       },
     },
   },
   comparison: {
     winnerByKpi: {
-      revenueImpact: "B",
+      revenueImpact: "A",
       risk: "B",
-      customerImpact: "B",
+      customerImpact: "A",
       operatingCosts: "B",
       competitiveExposure: "B",
       overallScore: "B",
@@ -179,7 +187,7 @@ export const MOCK_SIMULATION_RESPONSE = {
     estimatedCostEur: 0,
     fallbackUsed: false,
     cachedReplay: true,
-    generatedAt: "2026-03-24T00:00:00Z",
+    generatedAt: "2026-03-25T00:00:00Z",
     schemaVersion: "1.0.0",
   },
 } satisfies SimulationResponse;

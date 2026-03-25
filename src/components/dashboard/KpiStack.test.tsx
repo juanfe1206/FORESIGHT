@@ -26,9 +26,9 @@ describe("KpiStack", () => {
       </MotionConfig>,
     );
 
-    expect(MOCK_KPI_STACK_PROPS.comparison.winnerByKpi.revenueImpact).toBe("B");
+    expect(MOCK_KPI_STACK_PROPS.comparison.winnerByKpi.revenueImpact).toBe("A");
     expect(
-      screen.getAllByText(new RegExp(MOCK_KPI_STACK_PROPS.pathLabels.B.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")).length,
+      screen.getAllByText(new RegExp(MOCK_KPI_STACK_PROPS.pathLabels.A.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")).length,
     ).toBeGreaterThan(0);
     expect(screen.getAllByText(/favors this outcome/i).length).toBeGreaterThan(0);
   });
@@ -40,9 +40,9 @@ describe("KpiStack", () => {
       </MotionConfig>,
     );
 
-    const narrativeBlock = screen.getByText(/Potential local referral network/i);
+    const narrativeBlock = screen.getByText(/Delays brand evolution into evening market/i);
     expect(narrativeBlock).toBeInTheDocument();
-    expect(screen.getByText(/Broader digital brand awareness/i)).toBeInTheDocument();
+    expect(screen.getByText(/Misses Lavapiés first-mover window/i)).toBeInTheDocument();
     const narrativeArticle = screen.getByTestId("kpi-stack").querySelector('[data-kpi-key="opportunityCost"]');
     expect(narrativeArticle).toBeTruthy();
   });

@@ -584,7 +584,11 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
                       <div className="mt-3 flex flex-wrap gap-2">
                         {DEMO_SCENARIO_ORDER.map((id) => {
                           const label =
-                            id === "demo-map-v1" ? "Demo 1: Map" : id === "demo-flow-v1" ? "Demo 2: Flow" : "Demo 3: Network (fallback)";
+                            id === "demo-map-v1"
+                              ? "Toma Café: New Location"
+                              : id === "demo-flow-v1"
+                                ? "HanSo Café: Evening Menu"
+                                : "Boconó: Partnership";
                           return (
                             <button
                               key={id}
