@@ -4,7 +4,6 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { SimulationRequest } from "@/lib/types";
 import type { NearbyBusiness } from "@/lib/overpass";
-import { fetchNearbyCompetitors, geocodeLocation } from "@/lib/overpass";
 import { LocationSearchInput, type LocationSelection } from "./LocationSearchInput";
 import { GlowButton } from "@/components/shared/GlowButton";
 import {
@@ -176,27 +175,24 @@ export function InputWizard({
 
     const bizType = value.businessType || "other";
     const picked = selectedCoordsRef.current;
-
+    const params = new URLSearchParams({ bizType, location: value.location });
     if (picked) {
+      params.set("lat", String(picked.lat));
+      params.set("lng", String(picked.lng));
       setResolvedCoords(picked);
-      fetchNearbyCompetitors(bizType, picked.lat, picked.lng).then(
-        (results) => { setCompetitors(results); setCompetitorLoading(false); },
-        () => { setCompetitorError(true); setCompetitorLoading(false); },
-      );
-    } else {
-      geocodeLocation(value.location).then(
-        (geo) => {
-          const lat = geo?.lat ?? 40.4167;
-          const lng = geo?.lng ?? -3.7004;
-          if (geo) setResolvedCoords({ lat, lng });
-          fetchNearbyCompetitors(bizType, lat, lng).then(
-            (results) => { setCompetitors(results); setCompetitorLoading(false); },
-            () => { setCompetitorError(true); setCompetitorLoading(false); },
-          );
-        },
-        () => { setCompetitorError(true); setCompetitorLoading(false); },
-      );
     }
+
+    fetch(`/api/competitors?${params}`)
+      .then((res) => res.json())
+      .then((data: { competitors: NearbyBusiness[] }) => {
+        setCompetitors(data.competitors ?? []);
+        if (!picked && data.competitors?.length) {
+          const first = data.competitors[0];
+          setResolvedCoords({ lat: first.lat, lng: first.lng });
+        }
+        setCompetitorLoading(false);
+      })
+      .catch(() => { setCompetitorError(true); setCompetitorLoading(false); });
   }, [goNext, value.businessType, value.location, preloadedCompetitors]);
 
   const handleSubmit = useCallback(() => {

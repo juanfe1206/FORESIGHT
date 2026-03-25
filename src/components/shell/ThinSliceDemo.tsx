@@ -85,6 +85,7 @@ function resolveReplaySimulationResponse(): SimulationResponse | null {
 
 export type ThinSliceDemoProps = {
   simulationOptions?: SimulationRequest["options"];
+  onLogoClick?: () => void;
 };
 
 const springTransition = { type: "spring" as const, stiffness: 320, damping: 28 };
@@ -108,7 +109,7 @@ function VizOrientationBand({ vizType }: { vizType: VizType }) {
   );
 }
 
-export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
+export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoProps = {}) {
   const isDevPreviewEnabled = process.env.NODE_ENV !== "production";
   const reducedMotionResolved = useReducedMotionConfig();
   const reduceMotion = reducedMotionResolved === true;
@@ -120,9 +121,12 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
 
   const isMountedRef = useRef(true);
   const replayTimeoutRef = useRef<number | null>(null);
-  useEffect(() => () => {
-    isMountedRef.current = false;
-    if (replayTimeoutRef.current !== null) window.clearTimeout(replayTimeoutRef.current);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (replayTimeoutRef.current !== null) window.clearTimeout(replayTimeoutRef.current);
+    };
   }, []);
 
   const isApiCallRef = useRef(false);
@@ -165,7 +169,7 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
       productsOrServices: s.productsOrServices ?? "",
     });
     setPreloadedCompetitors(s.confirmedCompetitors ?? null);
-    setWizardInitialStep(3);
+    setWizardInitialStep(0);
     setActiveDemoScenarioId(id);
   }, []);
 
@@ -456,8 +460,15 @@ export function ThinSliceDemo({ simulationOptions }: ThinSliceDemoProps = {}) {
           data-viz-type={vizType}
         >
           <header className="border-b border-border px-6 py-4 lg:px-10">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.svg" alt="FORESIGHT" height={32} className="h-8 w-auto" />
+            {onLogoClick ? (
+              <button type="button" onClick={onLogoClick} className="cursor-pointer bg-transparent p-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.svg" alt="FORESIGHT — back to home" height={32} className="h-8 w-auto" />
+              </button>
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src="/logo.svg" alt="FORESIGHT" height={32} className="h-8 w-auto" />
+            )}
           </header>
 
           {isDevPreviewEnabled && (
