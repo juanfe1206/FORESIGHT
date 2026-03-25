@@ -182,7 +182,7 @@ export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoP
       productsOrServices: s.productsOrServices ?? "",
     });
     setPreloadedCompetitors(s.confirmedCompetitors ?? null);
-    setWizardInitialStep(3);
+    setWizardInitialStep(0);
     setActiveDemoScenarioId(id);
   }, []);
 
