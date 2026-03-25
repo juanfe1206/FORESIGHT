@@ -30,21 +30,21 @@ export const DEMO_SCENARIOS: Record<DemoScenarioId, DemoScenario> = {
       customerBase: "Locals + weekend tourists",
       monthlyRevenue: 8500,
       details:
-        "Rehearsal intent: decision is place-based (geographic reach / local market).",
+        "Place-based decision about geographic reach and local market expansion.",
     },
     expectedVizType: "map",
   },
   "demo-flow-v1": {
     id: "demo-flow-v1",
     decision:
-      "Increase monthly ad budget and staffing vs invest the same cash into maintenance only",
+      "Hire two new staff and launch a paid digital ad campaign vs invest in team training and upgrade back-office equipment",
     context: {
       industry: "Local services",
       location: "Madrid, Spain",
       customerBase: "Existing customers + targeted upsell",
       monthlyRevenue: 12000,
       details:
-        "Rehearsal intent: decision is resource allocation (budget/capacity/time planning).",
+        "Aggressive capacity and reach expansion vs operational strengthening before growing — different cost structures and time horizons.",
     },
     expectedVizType: "flow",
   },
@@ -58,7 +58,7 @@ export const DEMO_SCENARIOS: Record<DemoScenarioId, DemoScenario> = {
       customerBase: "Cross-referrals from partner venues",
       monthlyRevenue: 10000,
       details:
-        "Rehearsal intent: decision is relationships/ecosystem dynamics (partnerships + stakeholders).",
+        "Relationships and ecosystem decision about partnerships and stakeholder dynamics.",
     },
     expectedVizType: "network",
   },

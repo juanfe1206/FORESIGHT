@@ -153,6 +153,49 @@ describe("ThinSliceDemo", () => {
     expect(parsed.options?.demoScenarioId).toBe("demo-map-v1");
   });
 
+  it("Demo 3 PROVIDER_TIMEOUT triggers cache replay with runStatus=fallback and vizType=fallback", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_GOLDEN_REPLAY", "false");
+    const cached = makeSuccessResponse("Partner A", "Partner B");
+    const payload = await cached.json();
+    localStorage.setItem(
+      __simulationCacheTestUtils.STORAGE_KEY,
+      JSON.stringify({
+        v: 1,
+        entries: [{ storedAt: Date.now(), source: "live" as const, payload }],
+      }),
+    );
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 504,
+      json: () =>
+        Promise.resolve({
+          status: "error",
+          error: { code: "PROVIDER_TIMEOUT", message: "forced timeout", recoverable: true },
+          recovery: { canUseCache: true, fallbackViz: true },
+        }),
+    });
+
+    const user = userEvent.setup();
+    render(
+      <MotionConfig reducedMotion="always">
+        <ThinSliceDemo />
+      </MotionConfig>,
+    );
+
+    await user.click(screen.getByTestId("demo-scenario-btn-demo-network-v1"));
+    await user.click(screen.getByRole("button", { name: /simulate my decision/i }));
+
+    await waitFor(
+      () =>
+        expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "fallback"),
+      { timeout: 6000 },
+    );
+    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-ui-stage", "dashboard");
+    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-viz-type", "fallback");
+    expect(screen.getByTestId("fallback-shell")).toBeInTheDocument();
+  });
+
   it("flows input → dashboard after API response", async () => {
     const user = userEvent.setup();
     render(<ThinSliceDemo />);

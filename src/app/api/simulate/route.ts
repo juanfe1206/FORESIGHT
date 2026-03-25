@@ -140,6 +140,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       const [pathA, pathB] = await Promise.all([
         synthesizePath({
           pathLabel: path_labels.A,
+          alternativePathLabel: path_labels.B,
           agents: agentRun.agentsByPath.A,
           context: validation.data.context,
           apiKey: process.env.LLM_API_KEY,
@@ -148,6 +149,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         }),
         synthesizePath({
           pathLabel: path_labels.B,
+          alternativePathLabel: path_labels.A,
           agents: agentRun.agentsByPath.B,
           context: validation.data.context,
           apiKey: process.env.LLM_API_KEY,

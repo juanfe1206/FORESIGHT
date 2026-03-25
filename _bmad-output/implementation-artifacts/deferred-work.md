@@ -165,6 +165,11 @@
 - Agent slot count always assumed to be exactly 4 in `AgentHUD`; mismatched `agents` arrays produce silent trust gaps or drop agents. Pre-existing architecture constraint; revisit if agent counts become dynamic.
 - `AgentHUD` `useEffect` live region dep array omits `insightsByPath`/`agentsByPath` — changes to those props alone won't recompute the accessible announcement. Pre-existing pattern from Story 5.1; narrow impact; address in a dedicated a11y pass.
 
+## Deferred from: code review of 6-4-demo-scenarios-script-pre-demo-checklist (2026-03-25)
+
+- Circular `derivePathLabels` assertion in demo classifier test (`src/lib/classifier.test.ts`) — test imports and calls the same `derivePathLabels` function the classifier uses to compute expected path labels; assertion passes even if `derivePathLabels` has a regression; meaningful assertion is `mockCreate.not.toHaveBeenCalled()`.
+- `expectedVizType` field ambiguity for Demo 3 (`src/lib/demo-scenarios.ts`) — field correctly represents the classifier's output ("network") but the actual visible UI outcome for Demo 3 is "fallback" due to the forced timeout; no JSDoc comment bridges the gap for future maintainers.
+
 ## Deferred from: code review of 6-2-cached-golden-replay-bounded-client-cache (2026-03-25)
 
 - Stale cache entries not compacted on read — `readLatestValid` filters TTL in-memory but never rewrites storage; expired blobs accumulate until next successful `writeSuccess`. Minor quota inefficiency, no correctness impact.

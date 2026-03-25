@@ -60,13 +60,14 @@ describe("synthesizePath", () => {
     MockOpenAI.mockClear();
   });
 
-  it("uses only the provided path inputs in the prompt", async () => {
+  it("includes this path label, alternative path label, and agent insights in the prompt", async () => {
     mockCreate.mockResolvedValueOnce({
       choices: [{ message: { content: JSON.stringify(validSynthesisPayload) } }],
     });
 
     await synthesizePath({
       pathLabel: "Option A only",
+      alternativePathLabel: "Option B alternative",
       agents: agentsA,
       context: {
         industry: "Retail",
@@ -80,6 +81,7 @@ describe("synthesizePath", () => {
     const args = mockCreate.mock.calls[0]?.[0];
     const userPrompt = args?.messages?.[1]?.content as string;
     expect(userPrompt).toContain("Option A only");
+    expect(userPrompt).toContain("Option B alternative");
     expect(userPrompt).toContain("A customer signal");
     expect(userPrompt).not.toContain("B competitor-only signal");
   });
@@ -92,6 +94,7 @@ describe("synthesizePath", () => {
     await expect(
       synthesizePath({
         pathLabel: "Option A",
+        alternativePathLabel: "Option B",
         agents: agentsA,
         context: {},
         apiKey: "test-key",
@@ -123,6 +126,7 @@ describe("synthesizePath", () => {
 
     const result = await synthesizePath({
       pathLabel: "Option A",
+      alternativePathLabel: "Option B",
       agents: agentsA,
       context: {},
       apiKey: "test-key",
@@ -153,6 +157,7 @@ describe("synthesizePath", () => {
     await expect(
       synthesizePath({
         pathLabel: "Option A",
+        alternativePathLabel: "Option B",
         agents: agentsA,
         context: {},
         apiKey: "test-key",
@@ -182,6 +187,7 @@ describe("synthesizePath", () => {
     await expect(
       synthesizePath({
         pathLabel: "Option A",
+        alternativePathLabel: "Option B",
         agents: agentsA,
         context: {},
         apiKey: "test-key",
@@ -199,6 +205,7 @@ describe("synthesizePath", () => {
     await expect(
       synthesizePath({
         pathLabel: "Option A",
+        alternativePathLabel: "Option B",
         agents: agentsA,
         context: {},
         apiKey: "test-key",
@@ -214,6 +221,7 @@ describe("synthesizePath", () => {
     await expect(
       synthesizePath({
         pathLabel: "Option A",
+        alternativePathLabel: "Option B",
         agents: agentsA,
         context: {},
         apiKey: "test-key",
