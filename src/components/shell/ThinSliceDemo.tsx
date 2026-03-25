@@ -182,9 +182,7 @@ export function ThinSliceDemo({ simulationOptions, onLogoClick }: ThinSliceDemoP
       productsOrServices: s.productsOrServices ?? "",
     });
     setPreloadedCompetitors(s.confirmedCompetitors ?? null);
-    // Demo scenarios include preloaded competitors and a fully populated context,
-    // so we skip the early wizard steps and land directly on the competitor confirm step.
-    setWizardInitialStep(3);
+    setWizardInitialStep(0);
     setActiveDemoScenarioId(id);
   }, []);
 
