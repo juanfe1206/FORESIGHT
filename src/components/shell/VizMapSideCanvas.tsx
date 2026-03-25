@@ -20,10 +20,10 @@ export function VizMapSideCanvas({ side, vizType, children }: VizMapSideCanvasPr
     <div
       data-testid={testId}
       data-viz-side={side}
-      className="flex min-h-[12rem] min-w-0 flex-col rounded-xl border border-dashed border-border bg-surface/60 p-3"
+      className="flex min-h-48 min-w-0 flex-col rounded-xl border border-dashed border-border bg-surface/60 p-3"
     >
       <p className="mb-2 font-heading text-caption font-medium uppercase tracking-wide text-text-dim">Map canvas</p>
-      <div className="flex min-h-[8rem] min-w-0 flex-1 flex-col">{children}</div>
+      <div className="flex min-h-32 min-w-0 flex-1 flex-col">{children}</div>
     </div>
   );
 }
