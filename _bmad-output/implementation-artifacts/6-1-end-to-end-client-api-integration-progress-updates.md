@@ -1,6 +1,6 @@
 # Story 6.1: End-to-End Client ↔ API Integration & Progress Updates
 
-Status: review
+Status: done
 
 ## Story
 
@@ -243,6 +243,12 @@ gpt-5.3-codex-low
 - `docs/integration-contracts.md`
 - `_bmad-output/implementation-artifacts/6-1-end-to-end-client-api-integration-progress-updates.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+### Review Findings
+
+- [ ] [Review][Patch] Test `mockResolvedValueOnce` creates 2-agent mock but asserts `agents_per_path === 4` — semantically inconsistent [`src/app/api/simulate/route.test.ts:252-282`]
+- [x] [Review][Defer] `agents_per_path: 4` hardcoded in route.ts — not derived from actual agent count [`src/app/api/simulate/route.ts:180`] — deferred, pre-existing design; spec explicitly shows `4`; production AGENT_ROLES always yields 4 roles per viz type
+- [x] [Review][Defer] `...MOCK_SIMULATION_RESPONSE` top-level spread is now dead code — all SimulationResponse fields are explicitly overridden [`src/app/api/simulate/route.ts:174`] — deferred, pre-existing pattern; harmless; removal is a separate cleanup refactor
 
 ## Change Log
 

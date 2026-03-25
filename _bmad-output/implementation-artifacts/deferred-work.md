@@ -150,3 +150,8 @@
 - Hub label text (8px) inside scaling `motion.g` in `NetworkView` may appear blurry on sub-retina displays — visual preference, not a spec violation; revisit in a UX polish pass.
 - `VizRenderErrorBoundary` `key` reset on `pathLabel`/`viz_type` change causes full animation entry replay in dev preview — intentional boundary reset design; acceptable at MVP.
 - `runCardClassLeft`/`runCardClassRight` extended via Tailwind string concatenation in `ThinSliceDemo` — class conflict risk if base class strings evolve; pre-existing project composition pattern, revisit if `cn()` utility is adopted project-wide.
+
+## Deferred from: code review of 6-1-end-to-end-client-api-integration-progress-updates (2026-03-25)
+
+- `agents_per_path: 4` hardcoded in `route.ts` — not derived from actual agent count (`agentRun.agentsByPath.A.length`). In production AGENT_ROLES always yields 4 roles per viz type so it's always correct; but fragile if role counts ever change. Fix would be `agents_per_path: agentRun.agentsByPath.A.length`.
+- `...MOCK_SIMULATION_RESPONSE` top-level spread in `route.ts` is now dead code — all `SimulationResponse` fields are explicitly overridden after it. Pre-existing pattern; harmless. Remove in a dedicated cleanup refactor.
