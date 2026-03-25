@@ -2,6 +2,7 @@
 
 import { type FormEvent, useCallback, useId, useState } from "react";
 import type { SimulationRequest } from "@/lib/types";
+import { GlowButton } from "@/components/shared/GlowButton";
 import {
   type ContextFieldStrings,
   buildContextPayload,
@@ -29,9 +30,16 @@ type DecisionFormProps = {
   value: DecisionFormInputState;
   onChange: (partial: Partial<DecisionFormInputState>) => void;
   onValidSubmit: (payload: { decision: string; context: SimulationRequest["context"] }) => void;
+  /** When true, CTA shows loading and is disabled (valid submit path only). */
+  isSubmitting?: boolean;
 };
 
-export function DecisionForm({ value, onChange, onValidSubmit }: DecisionFormProps) {
+export function DecisionForm({
+  value,
+  onChange,
+  onValidSubmit,
+  isSubmitting = false,
+}: DecisionFormProps) {
   const decisionErrorId = useId();
   const revenueErrorId = useId();
   const [decisionError, setDecisionError] = useState<string | null>(null);
@@ -112,13 +120,13 @@ export function DecisionForm({ value, onChange, onValidSubmit }: DecisionFormPro
         revenueError={revenueError}
       />
 
-      <button
+      <GlowButton
         type="submit"
         data-testid="simulate-submit"
-        className="rounded-lg bg-accent px-6 py-3 font-heading text-body font-semibold text-bg transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+        loading={isSubmitting}
       >
         Simulate My Decision
-      </button>
+      </GlowButton>
     </form>
   );
 }

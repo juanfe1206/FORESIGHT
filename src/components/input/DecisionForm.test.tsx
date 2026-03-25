@@ -43,4 +43,37 @@ describe("DecisionForm", () => {
     expect(await screen.findByTestId("revenue-validation-error")).toBeInTheDocument();
     expect(onValidSubmit).not.toHaveBeenCalled();
   });
+
+  it("does not show loading on the CTA when validation fails", async () => {
+    const user = userEvent.setup();
+    render(
+      <DecisionForm
+        value={emptyDecisionFormState}
+        onChange={() => {}}
+        onValidSubmit={vi.fn()}
+        isSubmitting={false}
+      />,
+    );
+
+    await user.click(screen.getByTestId("simulate-submit"));
+
+    const submit = screen.getByTestId("simulate-submit");
+    expect(submit).not.toHaveAttribute("aria-busy", "true");
+    expect(submit).not.toBeDisabled();
+  });
+
+  it("shows loading on the CTA when isSubmitting is true", () => {
+    render(
+      <DecisionForm
+        value={{ ...emptyDecisionFormState, decision: "A vs B" }}
+        onChange={() => {}}
+        onValidSubmit={vi.fn()}
+        isSubmitting
+      />,
+    );
+
+    const submit = screen.getByTestId("simulate-submit");
+    expect(submit).toHaveAttribute("aria-busy", "true");
+    expect(submit).toBeDisabled();
+  });
 });

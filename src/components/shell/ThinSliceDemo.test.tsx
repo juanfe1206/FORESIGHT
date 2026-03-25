@@ -19,7 +19,7 @@ describe("ThinSliceDemo", () => {
     expect(screen.getByRole("region", { name: /decision input/i })).toBeInTheDocument();
   });
 
-  // P6: Verify submitting → inProgress ordering before the mock timer fires
+  // P6: Verify submitting on input shell before microtask advances to running + inProgress
   it("submit transitions synchronously to submitting before microtask advances to inProgress", () => {
     render(<ThinSliceDemo />);
     fireEvent.change(screen.getByRole("textbox", { name: /decision/i }), {
@@ -29,7 +29,10 @@ describe("ThinSliceDemo", () => {
     act(() => {
       fireEvent.click(screen.getByRole("button", { name: /simulate my decision/i }));
     });
-    expect(screen.getByTestId("thin-slice-root")).toHaveAttribute("data-run-status", "submitting");
+    const root = screen.getByTestId("thin-slice-root");
+    expect(root).toHaveAttribute("data-run-status", "submitting");
+    expect(root).toHaveAttribute("data-ui-stage", "input");
+    expect(screen.getByTestId("simulate-submit")).toHaveAttribute("aria-busy", "true");
   });
 
   it("flows input → running → dashboard without API calls", async () => {

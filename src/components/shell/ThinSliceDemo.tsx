@@ -89,10 +89,13 @@ export function ThinSliceDemo() {
   const onValidSubmit = useCallback(
     ({ decision }: { decision: string; context: SimulationRequest["context"] }) => {
       setPathLabels(derivePathLabels(decision));
-      setUiStage("running");
       setRunStatus("submitting");
-      // P2: Check mount status before the async state update
-      queueMicrotask(() => { if (isMountedRef.current) setRunStatus("inProgress"); });
+      // Stay on input for ≥1 frame so GlowButton can show loading; then enter running + inProgress.
+      queueMicrotask(() => {
+        if (!isMountedRef.current) return;
+        setUiStage("running");
+        setRunStatus("inProgress");
+      });
     },
     [],
   );
@@ -115,7 +118,8 @@ export function ThinSliceDemo() {
   const onDevRunStatusChange = useCallback((next: UiRunStatus) => {
     setRunStatus(next);
     if (next === "idle") setUiStage("input");
-    else if (next === "submitting" || next === "inProgress") setUiStage("running");
+    else if (next === "submitting") setUiStage("input");
+    else if (next === "inProgress") setUiStage("running");
     else if (next === "completed") setUiStage("dashboard");
     // "error" and "fallback" leave uiStage unchanged so the stage shell stays visible beneath the banner
   }, []);
@@ -248,7 +252,12 @@ export function ThinSliceDemo() {
                   transition={springTransition}
                   className="mx-auto w-full max-w-xl"
                 >
-                  <DecisionForm value={form} onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))} onValidSubmit={onValidSubmit} />
+                  <DecisionForm
+                    value={form}
+                    onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+                    onValidSubmit={onValidSubmit}
+                    isSubmitting={runStatus === "submitting"}
+                  />
                 </motion.section>
               )}
 
