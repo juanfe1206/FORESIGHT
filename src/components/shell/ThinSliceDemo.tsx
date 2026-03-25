@@ -1,7 +1,8 @@
 "use client";
 
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import type { AgentOutput, KPIs, PathSynthesis, SimulationResponse } from "@/lib/types";
 import {
   RUN_MOCK_MS,
   initialUiShellState,
@@ -11,7 +12,6 @@ import {
   type UiStage,
 } from "@/lib/ui-state";
 import { UiShellContext } from "@/lib/ui-shell-context";
-import { buildThinSliceMockComparison } from "@/lib/thin-slice-mock";
 import { CenterPanelSlot, LeftPanelSlot, RightPanelSlot } from "./PanelSlots";
 import { SimulationShell } from "./SimulationShell";
 
@@ -61,33 +61,92 @@ export function ThinSliceDemo() {
   const isMountedRef = useRef(true);
   useEffect(() => () => { isMountedRef.current = false; }, []);
 
+  // Skip the mock timer when a real API call is in flight
+  const isApiCallRef = useRef(false);
+
   const [uiStage, setUiStage] = useState<UiStage>(initialUiShellState.uiStage);
   const [runStatus, setRunStatus] = useState<UiRunStatus>(initialUiShellState.runStatus);
   const [decision, setDecision] = useState("");
   const [pathLabels, setPathLabels] = useState<[string, string]>(["Path A", "Path B"]);
-
-  const mockComparison = useMemo(
-    () => buildThinSliceMockComparison(pathLabels[0], pathLabels[1]),
-    [pathLabels],
-  );
+  const [vizType, setVizType] = useState<string | null>(null);
+  const [agentResults, setAgentResults] = useState<{ A: AgentOutput[]; B: AgentOutput[] } | null>(null);
+  const [synthesisResults, setSynthesisResults] = useState<{ A: PathSynthesis; B: PathSynthesis } | null>(null);
+  const [kpiResults, setKpiResults] = useState<{ A: KPIs; B: KPIs } | null>(null);
+  const [comparison, setComparison] = useState<SimulationResponse["comparison"] | null>(null);
+  const [meta, setMeta] = useState<SimulationResponse["meta"] | null>(null);
 
   useEffect(() => {
     if (uiStage !== "running" || runStatus !== "inProgress") return;
+    if (isApiCallRef.current) return;
     const id = window.setTimeout(() => {
+      setPathLabels(derivePathLabels(decision));
       setUiStage("dashboard");
       setRunStatus("completed");
     }, RUN_MOCK_MS);
     return () => window.clearTimeout(id);
-  }, [uiStage, runStatus]);
+  }, [uiStage, runStatus, decision]);
 
   const onSubmit = useCallback(
-    (e: FormEvent) => {
+    async (e: FormEvent) => {
       e.preventDefault();
-      setPathLabels(derivePathLabels(decision));
+
+      // Optimistic labels shown immediately during the running phase
+      const optimisticLabels = derivePathLabels(decision);
+      setPathLabels(optimisticLabels);
+
+      isApiCallRef.current = true;
       setUiStage("running");
       setRunStatus("submitting");
       // P2: Check mount status before the async state update
       queueMicrotask(() => { if (isMountedRef.current) setRunStatus("inProgress"); });
+
+      let finalLabels: [string, string] = optimisticLabels;
+      let finalStatus: UiRunStatus = "completed";
+
+      try {
+        const res = await fetch("/api/simulate", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ decision: decision.trim() }),
+        });
+        const json = await res.json() as Partial<SimulationResponse>;
+
+        if (res.ok && json.path_labels?.A && json.path_labels?.B) {
+          finalLabels = [json.path_labels.A, json.path_labels.B];
+          if (json.viz_type) setVizType(json.viz_type);
+
+          const agentsA = json.paths?.A?.agents;
+          const agentsB = json.paths?.B?.agents;
+          if (agentsA?.length && agentsB?.length) {
+            setAgentResults({ A: agentsA, B: agentsB });
+          }
+
+          const synthA = json.paths?.A?.synthesis;
+          const synthB = json.paths?.B?.synthesis;
+          if (synthA && synthB) setSynthesisResults({ A: synthA, B: synthB });
+
+          const kpisA = json.paths?.A?.kpis;
+          const kpisB = json.paths?.B?.kpis;
+          if (kpisA && kpisB) setKpiResults({ A: kpisA, B: kpisB });
+
+          if (json.comparison) setComparison(json.comparison);
+          if (json.meta) setMeta(json.meta);
+        } else {
+          finalStatus = "error";
+        }
+      } catch {
+        finalStatus = "error";
+      }
+
+      if (!isMountedRef.current) {
+        isApiCallRef.current = false;
+        return;
+      }
+
+      isApiCallRef.current = false;
+      setPathLabels(finalLabels);
+      setUiStage("dashboard");
+      setRunStatus(finalStatus);
     },
     [decision],
   );
@@ -96,6 +155,12 @@ export function ThinSliceDemo() {
     setUiStage("input");
     setRunStatus("idle");
     setDecision("");
+    setVizType(null);
+    setAgentResults(null);
+    setSynthesisResults(null);
+    setKpiResults(null);
+    setComparison(null);
+    setMeta(null);
   }, []);
 
   const onDevUiStageChange = useCallback((next: UiStage) => {
@@ -146,7 +211,7 @@ export function ThinSliceDemo() {
             <p className="font-heading text-caption uppercase tracking-wider text-text-dim">
               FORESIGHT
             </p>
-            <h1 className="font-heading text-h1 text-text">Thin slice demo</h1>
+            <h1 className="font-heading text-h1 text-text">Simulation</h1>
           </header>
 
           {isDevPreviewEnabled && (
@@ -210,9 +275,9 @@ export function ThinSliceDemo() {
                 aria-label="Error shell"
                 className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 px-5 py-4"
               >
-                <p className="font-heading text-body font-semibold text-text">Error</p>
+                <p className="font-heading text-body font-semibold text-text">Simulation unavailable</p>
                 <p className="mt-1 text-caption text-text-dim">
-                  Deterministic placeholder — Epic wiring will replace this surface.
+                  Could not reach the simulation engine — showing estimated results below.
                 </p>
               </div>
             )}
@@ -223,9 +288,9 @@ export function ThinSliceDemo() {
                 aria-label="Fallback visualization shell"
                 className="mb-4 rounded-xl border border-dashed border-border bg-surface px-5 py-4"
               >
-                <p className="font-heading text-body font-semibold text-text">Fallback</p>
+                <p className="font-heading text-body font-semibold text-text">Fallback mode</p>
                 <p className="mt-1 text-caption text-text-dim">
-                  Deterministic placeholder for fallback viz routing.
+                  Showing cached results — live simulation unavailable.
                 </p>
               </div>
             )}
@@ -321,7 +386,7 @@ export function ThinSliceDemo() {
                 <motion.section
                   key="dashboard"
                   role="region"
-                  aria-label="Mock comparison dashboard"
+                  aria-label="Comparison dashboard"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={springTransition}
@@ -332,13 +397,20 @@ export function ThinSliceDemo() {
                       aria-label="Path A summary and KPI slot"
                       className="order-1 lg:order-1"
                     >
-                      <motion.div {...panelMotion} transition={springTransition} className="h-full">
+                      <motion.div {...panelMotion} transition={springTransition} className="flex flex-col gap-4">
                         <KpiCard
-                          title={mockComparison.pathA.label}
+                          title={pathLabels[0]}
                           subtitle="Path A"
-                          kpis={mockComparison.pathA.kpis}
+                          kpis={kpiResults?.A ?? null}
+                          isWinner={comparison?.overallWinner === "A"}
                           accentClass="text-accent"
                         />
+                        {synthesisResults?.A && (
+                          <SynthesisSummary summary={synthesisResults.A.summary} accentClass="text-accent" />
+                        )}
+                        {agentResults?.A && (
+                          <AgentInsightList agents={agentResults.A} accentClass="text-accent" />
+                        )}
                       </motion.div>
                     </LeftPanelSlot>
                     <CenterPanelSlot
@@ -351,9 +423,39 @@ export function ThinSliceDemo() {
                         className="rounded-xl border border-border bg-surface p-6 text-center"
                       >
                         <p className="font-heading text-h3 text-text">Comparison</p>
-                        <p className="mt-2 text-caption text-text-dim">
-                          Mock outcome — no API calls in this slice
-                        </p>
+                        {vizType && (
+                          <span className="mt-3 inline-block rounded-full bg-accent/10 px-3 py-1 font-mono text-caption uppercase tracking-wide text-accent">
+                            {vizType}
+                          </span>
+                        )}
+                        {comparison ? (
+                          <div className="mt-4 flex flex-col gap-2">
+                            <p className="text-caption text-text-dim">Overall winner</p>
+                            <p className={`font-heading text-h3 ${comparison.overallWinner === "A" ? "text-accent" : "text-blue"}`}>
+                              {comparison.overallWinner === "A" ? pathLabels[0] : pathLabels[1]}
+                            </p>
+                            {meta && (
+                              <dl className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
+                                <div>
+                                  <dt className="text-caption text-text-dim">Latency</dt>
+                                  <dd className="font-mono text-caption text-text">{meta.latencyMs}ms</dd>
+                                </div>
+                                <div>
+                                  <dt className="text-caption text-text-dim">LLM calls</dt>
+                                  <dd className="font-mono text-caption text-text">{meta.llmCalls}</dd>
+                                </div>
+                                <div>
+                                  <dt className="text-caption text-text-dim">Est. cost</dt>
+                                  <dd className="font-mono text-caption text-text">€{meta.estimatedCostEur.toFixed(2)}</dd>
+                                </div>
+                              </dl>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-caption text-text-dim">
+                            {agentResults ? "Agents: live · awaiting synthesis" : "Awaiting simulation results"}
+                          </p>
+                        )}
                       </motion.div>
                     </CenterPanelSlot>
                     <RightPanelSlot
@@ -363,14 +465,21 @@ export function ThinSliceDemo() {
                       <motion.div
                         {...panelMotion}
                         transition={{ ...springTransition, delay: 0.1 }}
-                        className="h-full"
+                        className="flex flex-col gap-4"
                       >
                         <KpiCard
-                          title={mockComparison.pathB.label}
+                          title={pathLabels[1]}
                           subtitle="Path B"
-                          kpis={mockComparison.pathB.kpis}
+                          kpis={kpiResults?.B ?? null}
+                          isWinner={comparison?.overallWinner === "B"}
                           accentClass="text-blue"
                         />
+                        {synthesisResults?.B && (
+                          <SynthesisSummary summary={synthesisResults.B.summary} accentClass="text-blue" />
+                        )}
+                        {agentResults?.B && (
+                          <AgentInsightList agents={agentResults.B} accentClass="text-blue" />
+                        )}
                       </motion.div>
                     </RightPanelSlot>
                   </div>
@@ -434,39 +543,105 @@ export function ThinSliceDemo() {
   );
 }
 
+function AgentInsightList({ agents, accentClass }: { agents: AgentOutput[]; accentClass: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-surface p-4">
+      <p className="font-heading text-caption font-semibold uppercase tracking-wider text-text-dim">
+        Agent Insights
+        <span className="ml-2 inline-block rounded-full bg-accent/10 px-2 py-0.5 font-mono text-caption normal-case tracking-normal text-accent">
+          live
+        </span>
+      </p>
+      <ul className="mt-3 flex flex-col gap-3">
+        {agents.map((agent) => (
+          <li key={agent.role} className="border-t border-border pt-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className={`text-caption font-medium ${accentClass}`}>{agent.role}</span>
+              <span className="font-mono text-caption text-text-dim">
+                {Math.round(agent.confidence * 100)}%{" "}
+                <span className="text-text-dim/60">{agent.grounding}</span>
+              </span>
+            </div>
+            <p className="mt-1 text-caption text-text-dim">{agent.insight}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function KpiCard({
   title,
   subtitle,
   kpis,
+  isWinner,
   accentClass,
 }: {
   title: string;
   subtitle: string;
-  kpis: { revenue: string; risk: string; timeToValue: string; confidence: string };
+  kpis: KPIs | null;
+  isWinner: boolean;
   accentClass: string;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-xl border border-border bg-surface p-4">
-      <h3 className={`font-heading text-h3 ${accentClass}`}>{title}</h3>
-      <p className="text-caption text-text-dim">{subtitle}</p>
-      <dl className="mt-4 grid grid-cols-1 gap-3 text-caption">
-        <div className="flex justify-between gap-2 border-t border-border pt-3">
-          <dt className="text-text-dim">Revenue (mock)</dt>
-          <dd className="font-mono text-kpi text-text">{kpis.revenue}</dd>
+    <div className={`flex flex-col rounded-xl border bg-surface p-4 ${isWinner ? "border-accent/60" : "border-border"}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className={`font-heading text-h3 ${accentClass}`}>{title}</h3>
+          <p className="text-caption text-text-dim">{subtitle}</p>
         </div>
-        <div className="flex justify-between gap-2 border-t border-border pt-3">
-          <dt className="text-text-dim">Risk</dt>
-          <dd className="font-mono text-kpi text-text">{kpis.risk}</dd>
-        </div>
-        <div className="flex justify-between gap-2 border-t border-border pt-3">
-          <dt className="text-text-dim">Time to value</dt>
-          <dd className="font-mono text-kpi text-text">{kpis.timeToValue}</dd>
-        </div>
-        <div className="flex justify-between gap-2 border-t border-border pt-3">
-          <dt className="text-text-dim">Confidence</dt>
-          <dd className="font-mono text-kpi text-gold">{kpis.confidence}</dd>
-        </div>
-      </dl>
+        {isWinner && (
+          <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 font-mono text-caption text-accent">
+            winner
+          </span>
+        )}
+      </div>
+      {kpis ? (
+        <dl className="mt-4 grid grid-cols-1 gap-3 text-caption">
+          <div className="flex justify-between gap-2 border-t border-border pt-3">
+            <dt className="text-text-dim">Overall score</dt>
+            <dd className="font-mono text-kpi text-text">{kpis.overallScore}<span className="text-text-dim">/100</span></dd>
+          </div>
+          <div className="flex justify-between gap-2 border-t border-border pt-3">
+            <dt className="text-text-dim">Revenue impact</dt>
+            <dd className={`font-mono text-kpi ${kpis.revenueImpact >= 0 ? "text-text" : "text-red-400"}`}>
+              {kpis.revenueImpact >= 0 ? "+" : ""}{kpis.revenueImpact}%
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2 border-t border-border pt-3">
+            <dt className="text-text-dim">Risk</dt>
+            <dd className="font-mono text-kpi text-text">{kpis.risk}<span className="text-text-dim">/100</span></dd>
+          </div>
+          <div className="flex justify-between gap-2 border-t border-border pt-3">
+            <dt className="text-text-dim">Customer impact</dt>
+            <dd className="font-mono text-kpi text-text">{kpis.customerImpact}<span className="text-text-dim">/100</span></dd>
+          </div>
+          <div className="flex justify-between gap-2 border-t border-border pt-3">
+            <dt className="text-text-dim">Opportunity cost</dt>
+            <dd className="text-right text-caption text-text-dim">{kpis.opportunityCost}</dd>
+          </div>
+        </dl>
+      ) : (
+        <dl className="mt-4 grid grid-cols-1 gap-3 text-caption">
+          {["Overall score", "Revenue impact", "Risk", "Customer impact"].map((label) => (
+            <div key={label} className="flex justify-between gap-2 border-t border-border pt-3">
+              <dt className="text-text-dim">{label}</dt>
+              <dd className="h-4 w-16 animate-pulse rounded bg-border" />
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
+  );
+}
+
+function SynthesisSummary({ summary, accentClass }: { summary: string; accentClass: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-surface p-4">
+      <p className={`font-heading text-caption font-semibold uppercase tracking-wider ${accentClass}`}>
+        Synthesis
+      </p>
+      <p className="mt-2 text-caption text-text-dim leading-relaxed">{summary}</p>
     </div>
   );
 }
