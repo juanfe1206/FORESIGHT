@@ -248,7 +248,8 @@ export async function synthesizePath(input: SynthesizePathInput): Promise<Synthe
         ],
         response_format: { type: "json_object" },
         max_tokens: 800,
-        temperature: 0.5,
+        // Lower sampling temp for more stable KPI/timeline synthesis.
+        temperature: 0.45,
       },
       { signal: AbortSignal.timeout(input.timeoutMs) },
     );

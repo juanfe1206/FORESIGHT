@@ -198,7 +198,8 @@ async function executeAgentSlot(
         ],
         response_format: { type: "json_object" },
         max_tokens: 300,
-        temperature: 0.7,
+        // Lower sampling temp for more deterministic, less "creative" outputs.
+        temperature: 0.6,
       },
       { signal: AbortSignal.timeout(input.timeoutMs) },
     );
